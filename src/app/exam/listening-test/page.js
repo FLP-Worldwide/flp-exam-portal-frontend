@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Play, Pause } from 'lucide-react'
+import Player from '../../../components/shared/Player'
 
 export default function ListeningTest() {
   const [isPlaying, setIsPlaying] = useState(false)
@@ -67,13 +67,9 @@ export default function ListeningTest() {
           <h2 className="text-2xl font-semibold text-gray-800">
             Hörverstehen – Teil 3
           </h2>
-          <button
-            onClick={handlePlayPause}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-          >
-            {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-            {isPlaying ? 'Pause' : 'Play'}
-          </button>
+          <div className='w-80 shadow-sm'>
+           <Player/>
+          </div>
         </div>
 
         {/* Info Section */}
