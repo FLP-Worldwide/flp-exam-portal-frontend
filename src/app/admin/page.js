@@ -1,6 +1,5 @@
-'use client';
-import ExamTabs from "../../components/ExamTabs";
 const Admin = ()=>{
-    return <ExamTabs />
+    return <div>Admin Page</div>
 }
+
 export default Admin;

@@ -4,6 +4,7 @@ import LevelOne from "./LevelOne";
 import LabelTwo from "./LevelTwo";
 import Lesen3 from "./Lesen3";
 import Sprachbausteine1 from "./Sprachbausteine1";
+import Sprachbausteine2 from "./Sprachbausteine2";
 
 export default function ExamTabs() {
   const [activeTab, setActiveTab] = useState("lesen1");
@@ -20,7 +21,7 @@ export default function ExamTabs() {
     switch (activeTab) {
       case "lesen1":
         return (
-            <LevelOne />
+          <LevelOne />
         );
       case "lesen2":
         return (
@@ -36,20 +37,7 @@ export default function ExamTabs() {
         );
       case "sprache2":
         return (
-          <table className="min-w-full border border-gray-300 bg-white rounded-md">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border p-3 text-left">Aufgabe</th>
-                <th className="border p-3 text-left">Richtige Antwort</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="border p-3">Welche Form ist korrekt? „gegangen“ oder „gehst“</td>
-                <td className="border p-3">gegangen</td>
-              </tr>
-            </tbody>
-          </table>
+          <Sprachbausteine2 />
         );
       default:
         return null;
@@ -65,11 +53,10 @@ export default function ExamTabs() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-t-md border text-sm font-medium transition-all ${
-                activeTab === tab.key
+              className={`px-4 py-2 rounded-t-md border text-sm font-medium transition-all ${activeTab === tab.key
                   ? "bg-white text-[#004080] border-[#004080]"
                   : "bg-[#004080] text-white border-white hover:bg-blue-700"
-              }`}
+                }`}
             >
               {tab.label}
             </button>
