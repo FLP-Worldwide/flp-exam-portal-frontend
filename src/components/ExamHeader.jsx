@@ -1,8 +1,8 @@
 
 'use client'
 import { useState } from "react";
-
-export default function ExamHeader({
+import { useRouter } from 'next/navigation'
+export default function ExamHeader({   
   title = "Exam Portal",
   subtitle = "Midterm — Computer Science 101",
   logoSrc = "https://flpworldwide.com/wp-content/uploads/2024/12/FLP-Logo-e1739693871975-1024x344.png",
@@ -10,10 +10,17 @@ export default function ExamHeader({
   userName = "Student Name",
 }) {
   const [open, setOpen] = useState(false);
-
+  const router = useRouter();
   function toggle() {
     setOpen(!open);
     if (onMenuToggle) onMenuToggle(!open);
+  }
+
+    // Logout handler
+  const handleLogout = () => {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('role')
+    router.push('/')
   }
 
   return (
@@ -98,6 +105,9 @@ export default function ExamHeader({
                 {/* placeholder avatar initial */}
                 <span className="text-sm font-semibold text-gray-700">{(userName || "U").charAt(0)}</span>
               </button>
+            </div>
+            <div>
+              <button onClick={handleLogout}>Logout</button>
             </div>
           </div>
         </div>

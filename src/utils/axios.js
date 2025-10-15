@@ -1,22 +1,22 @@
 // utils/axios.js
 import axios from "axios";
-import { getSession } from "next-auth/react";
 
 const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL,
-    timeout: 10000,
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  timeout: 10000,
 });
 
-// Request interceptor
-api.interceptors.request.use(async (config) => {
-   
-    const session = await getSession(); // ✅ get current NextAuth session
-    if (session?.accessToken) {
-        config.headers.Authorization = `Bearer ${session.accessToken}`;
+api.interceptors.request.use(
+  (config) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-
-    console.log('Request URL:',session);
+    console.log("Request URL:", config.baseURL + config.url);
     return config;
-});
+  },
+  (error) => Promise.reject(error)
+);
 
 export default api;
