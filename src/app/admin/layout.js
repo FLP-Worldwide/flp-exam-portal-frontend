@@ -5,6 +5,10 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   LogoutOutlined,
+  UsergroupAddOutlined,
+  UserAddOutlined,
+  DiffOutlined,
+  DollarOutlined,
 } from '@ant-design/icons'
 import { Button, Layout, Menu, theme, Space } from 'antd'
 import { usePathname, useRouter } from 'next/navigation'
@@ -26,11 +30,25 @@ const siderStyle = {
 // Menu config
 const MENU_ITEMS = [
   {
-    key: '/admin/exam-test',
-    icon: React.createElement(UserOutlined),
-    label: 'Tests',
+    key: '/admin/create-exam-test',
+    icon: React.createElement(DiffOutlined),
+    label: 'Create Exam Test',
   },
-  // Add more items here
+  {
+    key: '/admin/student',
+    icon: React.createElement(UsergroupAddOutlined),
+    label: 'Student',
+  },
+  {
+    key: '/admin/teacher',
+    icon: React.createElement(UserAddOutlined),
+    label: 'Teacher',
+  },
+  {
+    key: '/admin/test-sale-order',
+    icon: React.createElement(DollarOutlined),
+    label: 'Test Sale Order',
+  },
 ]
 
 export default function AdminLayout({ children }) {
@@ -60,7 +78,7 @@ export default function AdminLayout({ children }) {
     <Layout hasSider>
       <Sider trigger={null} style={siderStyle} collapsible collapsed={collapsed}>
         <div className="text-white text-center font-bold py-3">
-          {collapsed ? 'FP' : 'FLP EXAM PORTAL'}
+          {collapsed ? 'FLP' : 'FLP EXAM PORTAL'}
         </div>
 
         <Menu

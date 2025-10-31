@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Button,
   Table,
@@ -13,6 +13,7 @@ import {
   Radio,
 } from "antd";
 import { useRouter } from "next/navigation";
+import api from "../../../utils/axios";
 import MODULE_CONST from "../../../constants/MODULE_CONST"; // ✅ adjust path if needed
 
 const { Option } = Select;
@@ -20,33 +21,34 @@ const { Option } = Select;
 const Exam = () => {
   const router = useRouter();
 
-  // ✅ Temporary test list
-  const [tests, setTests] = useState([
-    { key: "1", name: "English Test", price: 100, language: "English" },
-    { key: "2", name: "German Test", price: 200, language: "German" },
-  ]);
-
-  // ✅ Modal states
+  const [tests, setTests] = useState([]);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [isModuleModalOpen, setIsModuleModalOpen] = useState(false);
-
-  const [form] = Form.useForm();
-
-  // ✅ Track selected module
   const [selectedModule, setSelectedModule] = useState(null);
+  const [form] = Form.useForm();
+  const [selectedTestId, setSelectedTestId] = useState(null);
+
+  // ✅ Fetch tests from API
+  useEffect(() => {
+    const fetchTests = async () => {
+      try {
+        const response = await api.get(`course-test`);
+        setTests(response.data.data || []);
+        message.success("Tests loaded successfully!");
+      } catch (error) {
+        console.error("Error fetching tests:", error);
+        message.error("Failed to fetch tests!");
+      }
+    };
+    fetchTests();
+  }, []);
 
   // ✅ Table columns
   const columns = [
     {
       title: "Test Name",
-      dataIndex: "name",
-      key: "name",
-    },
-    {
-      title: "Test Price",
-      dataIndex: "price",
-      key: "price",
-      render: (p) => `₹${p}`,
+      dataIndex: "testName",
+      key: "testName",
     },
     {
       title: "Language",
@@ -54,14 +56,25 @@ const Exam = () => {
       key: "language",
     },
     {
+      title: "Duration (min)",
+      dataIndex: "duration",
+      key: "duration",
+      render: (d) => `${Math.floor(d / 60)} mins`,
+    },
+    {
+      title: "Price (₹)",
+      dataIndex: "price",
+      key: "price",
+    },
+    {
       title: "Actions",
       key: "actions",
       render: (_, record) => (
         <Space>
-          <Button type="link" onClick={() => handleAddModule(record.key)}>
+          <Button type="link" onClick={() => handleAddModule(record._id)}>
             Add Module
           </Button>
-          <Button danger type="link" onClick={() => handleDelete(record.key)}>
+          <Button danger type="link" onClick={() => handleDelete(record._id)}>
             Delete
           </Button>
         </Space>
@@ -70,34 +83,44 @@ const Exam = () => {
   ];
 
   // ✅ Add new test
-  const handleAddTest = () => {
-    form
-      .validateFields()
-      .then((values) => {
-        const newTest = {
-          key: Date.now().toString(),
-          name: values.name,
-          price: values.price,
-          language: values.language,
-        };
-        setTests((prev) => [...prev, newTest]);
-        message.success("New test added!");
-        form.resetFields();
-        setIsTestModalOpen(false);
-      })
-      .catch(() => {});
+  const handleAddTest = async () => {
+    try {
+      const values = await form.validateFields();
+      const payload = {
+        testName: values.name,
+        language: values.language,
+        price: values.price,
+        duration: values.duration || 3600, // default 1 hour
+      };
+
+      const response = await api.post("course-test/create", payload);
+      message.success("New test created successfully!");
+      setTests((prev) => [...prev, response.data.data]);
+      setIsTestModalOpen(false);
+      form.resetFields();
+    } catch (error) {
+      console.error("Error creating test:", error);
+      message.error("Failed to create test!");
+    }
   };
 
   // ✅ Delete test
-  const handleDelete = (key) => {
-    setTests((prev) => prev.filter((t) => t.key !== key));
-    message.success("Test deleted successfully!");
+  const handleDelete = async (id) => {
+    try {
+      await api.delete(`course-test/${id}`);
+      setTests((prev) => prev.filter((t) => t._id !== id));
+      message.success("Test deleted successfully!");
+    } catch (error) {
+      console.error("Delete error:", error);
+      message.error("Failed to delete test!");
+    }
   };
 
   // ✅ Handle Add Module button click
-  const handleAddModule = (key) => {
-    const test = tests.find((t) => t.key === key);
-    message.info(`Add module for: ${test.name}`);
+  const handleAddModule = (id) => {
+    const test = tests.find((t) => t._id === id);
+    message.info(`Add module for: ${test.testName}`);
+    setSelectedTestId(test._id);
     setIsModuleModalOpen(true);
   };
 
@@ -108,7 +131,7 @@ const Exam = () => {
       return;
     }
     setIsModuleModalOpen(false);
-    router.push(`/admin/exam-test/module/${selectedModule.toLowerCase()}`);
+    router.push(`/admin/create-exam-test/module/${selectedModule.toLowerCase()}?testId=${selectedTestId}`);
   };
 
   return (
@@ -120,7 +143,12 @@ const Exam = () => {
         </Button>
       </div>
 
-      <Table dataSource={tests} columns={columns} rowKey="key" pagination={false} />
+      <Table
+        dataSource={tests}
+        columns={columns}
+        rowKey={(record) => record._id}
+        pagination={false}
+      />
 
       {/* ✅ Modal: Add Test */}
       <Modal
@@ -138,9 +166,16 @@ const Exam = () => {
           >
             <Input placeholder="Enter test name" />
           </Form.Item>
+          <Form.Item
+            label="Test Duration (minutes)"
+            name="duration"
+            rules={[{ required: true, message: "Please enter test duration" }]}
+          >
+            <Input placeholder="Enter test duration" />
+          </Form.Item>
 
           <Form.Item
-            label="Test Price"
+            label="Test Price (₹)"
             name="price"
             rules={[{ required: true, message: "Please enter test price" }]}
           >
@@ -180,7 +215,7 @@ const Exam = () => {
               {mod}
             </Radio>
           ))}
-        </Radio.Group>
+        </Radio.Group>  
       </Modal>
     </>
   );
