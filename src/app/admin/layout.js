@@ -13,6 +13,7 @@ import {
 import { Button, Layout, Menu, theme, Space } from 'antd'
 import { usePathname, useRouter } from 'next/navigation'
 import ProtectedRoute from '../../utils/ProtectedRoute'
+import { Toaster } from "react-hot-toast";
 
 const { Header, Content, Footer, Sider } = Layout
 
@@ -126,6 +127,9 @@ export default function AdminLayout({ children }) {
         <Footer style={{ textAlign: 'center' }}>
           Ant Design ©{new Date().getFullYear()} Created by Ant UED
         </Footer>
+
+         <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+         
       </Layout>
     </Layout>
     </ProtectedRoute>

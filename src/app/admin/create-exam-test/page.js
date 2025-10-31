@@ -15,6 +15,8 @@ import {
 import { useRouter } from "next/navigation";
 import api from "../../../utils/axios";
 import MODULE_CONST from "../../../constants/MODULE_CONST"; // ✅ adjust path if needed
+import toast from "react-hot-toast";
+
 
 const { Option } = Select;
 
@@ -34,10 +36,11 @@ const Exam = () => {
       try {
         const response = await api.get(`course-test`);
         setTests(response.data.data || []);
-        message.success("Tests loaded successfully!");
+
+        toast.success("Tests loaded successfully!");
       } catch (error) {
         console.error("Error fetching tests:", error);
-        message.error("Failed to fetch tests!");
+        toast.error("Failed to fetch tests!");
       }
     };
     fetchTests();
@@ -94,13 +97,13 @@ const Exam = () => {
       };
 
       const response = await api.post("course-test/create", payload);
-      message.success("New test created successfully!");
+      toast.success("New test created successfully!");
       setTests((prev) => [...prev, response.data.data]);
       setIsTestModalOpen(false);
       form.resetFields();
     } catch (error) {
       console.error("Error creating test:", error);
-      message.error("Failed to create test!");
+      toast.error("Failed to create test!");
     }
   };
 
@@ -109,17 +112,17 @@ const Exam = () => {
     try {
       await api.delete(`course-test/${id}`);
       setTests((prev) => prev.filter((t) => t._id !== id));
-      message.success("Test deleted successfully!");
+      toast.success("Test deleted successfully!");
     } catch (error) {
       console.error("Delete error:", error);
-      message.error("Failed to delete test!");
+      toast.error("Failed to delete test!");
     }
   };
 
   // ✅ Handle Add Module button click
   const handleAddModule = (id) => {
     const test = tests.find((t) => t._id === id);
-    message.info(`Add module for: ${test.testName}`);
+    toast(`Add module for: ${test.testName}`);
     setSelectedTestId(test._id);
     setIsModuleModalOpen(true);
   };
@@ -127,7 +130,7 @@ const Exam = () => {
   // ✅ Handle Next → route to /module/[moduleName]
   const handleModuleNext = () => {
     if (!selectedModule) {
-      message.warning("Please select a module type!");
+      toast.warning("Please select a module type!");
       return;
     }
     setIsModuleModalOpen(false);

@@ -12,8 +12,6 @@ export default function ModulePage() {
   const name = params.name; // from the dynamic route [.../module/[name]]
   const testId = searchParams.get("testId"); // from ?testId=...
 
-//   console.log("Module:", name);
-//   console.log("Test ID:", testId);
 
   return (
     <div>
