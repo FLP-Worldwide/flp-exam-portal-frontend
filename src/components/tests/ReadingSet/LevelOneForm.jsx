@@ -1,16 +1,35 @@
 'use client';
-import React, { useState } from "react";
-import { Card, Input, Button, Form, Space, Typography, Divider, message } from "antd";
+import React, { useState, useEffect } from "react";
+import { Card, Input, Button, Form, Space, Typography, Divider } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import api from "../../../utils/axios";
 import toast from "react-hot-toast";
 
 const { Title } = Typography;
 
-export default function LevelOneForm({ testId }) {
+export default function LevelOneForm({ testId, data }) {
   const [paragraphs, setParagraphs] = useState([{ id: Date.now(), text: "", answer: "" }]);
   const [options, setOptions] = useState(["", "", "", ""]);
   const [loading, setLoading] = useState(false);
+
+  // ✅ Prefill when data is available
+  useEffect(() => {
+    if (data?.content) {
+      const prefilledParagraphs =
+        data.content.paragraphs?.map((p, idx) => ({
+          id: idx + 1,
+          text: p.paragraph || "",
+          answer: p.answer || "",
+        })) || [];
+
+      const prefilledOptions = data.content.options?.length
+        ? data.content.options
+        : ["", "", "", ""];
+
+      setParagraphs(prefilledParagraphs.length ? prefilledParagraphs : [{ id: Date.now(), text: "", answer: "" }]);
+      setOptions(prefilledOptions);
+    }
+  }, [data]);
 
   const addParagraph = () => setParagraphs([...paragraphs, { id: Date.now(), text: "", answer: "" }]);
   const updateParagraph = (id, value) =>
@@ -36,11 +55,11 @@ export default function LevelOneForm({ testId }) {
     };
 
     if (!payload.content.paragraphs[0]?.paragraph) {
-      toast.warning("Please enter at least one paragraph!");
+      toast.error("Please enter at least one paragraph!");
       return;
     }
     if (payload.content.options.length === 0) {
-      toast.warning("Please enter at least one option!");
+      toast.error("Please enter at least one option!");
       return;
     }
 
@@ -65,13 +84,15 @@ export default function LevelOneForm({ testId }) {
             <div key={p.id} className="border p-4 mb-4 rounded-md bg-white">
               <div className="flex justify-between items-center">
                 <label className="font-semibold">Paragraph {index + 1}</label>
-                <Button
-                  type="text"
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={() => setParagraphs(paragraphs.filter((item) => item.id !== p.id))}
-                />
+                {paragraphs.length > 1 && (
+                  <Button
+                    type="text"
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => setParagraphs(paragraphs.filter((item) => item.id !== p.id))}
+                  />
+                )}
               </div>
 
               <Input.TextArea
@@ -108,7 +129,12 @@ export default function LevelOneForm({ testId }) {
             />
           ))}
 
-          <Button type="dashed" icon={<PlusOutlined />} onClick={addOption} className="w-full mb-4">
+          <Button
+            type="dashed"
+            icon={<PlusOutlined />}
+            onClick={addOption}
+            className="w-full mb-4"
+          >
             Add More Option
           </Button>
 

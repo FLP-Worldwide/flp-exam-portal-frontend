@@ -1,33 +1,45 @@
 'use client';
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, Input, Button, Typography, Divider, message } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import api from "../../../utils/axios";
 
 const { Title } = Typography;
 
-export default function LevelFiveForm({ testId }) {
+export default function LevelFiveForm({ testId, data }) {
+
+  console.log(data,"======");
   const [paragraphs, setParagraphs] = useState([
     {
       id: Date.now(),
       paragraph: "",
-      blanks: [""], // each blank = one answer
+      blanks: [""],
     },
   ]);
   const [loading, setLoading] = useState(false);
+
+  // 🧾 Prefill existing Level 5 data if provided
+  useEffect(() => {
+    if (data?.content?.paragraphs?.length) {
+      const prefilled = data.content.paragraphs.map((p) => ({
+        id: Date.now() + Math.random(),
+        paragraph: p.paragraph || "",
+        blanks: p.blanks?.length ? p.blanks : [""],
+      }));
+      setParagraphs(prefilled);
+    }
+  }, [data]);
 
   // 🧩 Detect blanks from paragraph text (count ___)
   const handleParagraphChange = (id, value) => {
     setParagraphs((prev) =>
       prev.map((p) => {
         if (p.id !== id) return p;
-
         const blankCount = (value.match(/___/g) || []).length;
         const updatedBlanks = Array.from(
           { length: blankCount },
           (_, i) => p.blanks[i] || ""
         );
-
         return { ...p, paragraph: value, blanks: updatedBlanks };
       })
     );
@@ -38,10 +50,7 @@ export default function LevelFiveForm({ testId }) {
     setParagraphs((prev) =>
       prev.map((p) =>
         p.id === pId
-          ? {
-              ...p,
-              blanks: p.blanks.map((b, i) => (i === index ? value : b)),
-            }
+          ? { ...p, blanks: p.blanks.map((b, i) => (i === index ? value : b)) }
           : p
       )
     );
@@ -60,9 +69,9 @@ export default function LevelFiveForm({ testId }) {
     setParagraphs((prev) => prev.filter((p) => p.id !== id));
   };
 
-  // 💾 Save data
+  // 💾 Save Level 5 data
   const handleSave = async () => {
-    if (!testId) return message.error("❌ Test ID missing!");
+    if (!testId) return toast.error("❌ Test ID missing!");
 
     const payload = {
       testId,
@@ -76,6 +85,7 @@ export default function LevelFiveForm({ testId }) {
       },
     };
 
+    // Basic validation
     if (
       payload.content.paragraphs.some(
         (p) =>
@@ -83,16 +93,16 @@ export default function LevelFiveForm({ testId }) {
           (p.paragraph.includes("___") && p.blanks.some((b) => !b.trim()))
       )
     ) {
-      return message.warning("Please fill all blanks for each paragraph!");
+      return toast.warning("Please fill all blanks for each paragraph!");
     }
 
     try {
       setLoading(true);
       const res = await api.post("/course-test/details", payload);
-      message.success(res.data?.message || "Level 5 saved successfully!");
+      toast.success(res.data?.message || "✅ Level 5 saved successfully!");
     } catch (err) {
       console.error("Save Level 5 error:", err);
-      message.error(err.response?.data?.message || "Failed to save Level 5 data!");
+      toast.error(err.response?.data?.message || "Failed to save Level 5 data!");
     } finally {
       setLoading(false);
     }
@@ -149,16 +159,19 @@ export default function LevelFiveForm({ testId }) {
 
         <Divider />
 
-        <Divider />
-
-        <Button
-          type="primary"
-          loading={loading}
-          onClick={handleSave}
-          className="w-full"
-        >
-          Save Level 5
-        </Button>
+        <div className="flex justify-between">
+          <Button icon={<PlusOutlined />} onClick={addParagraph}>
+            Add Paragraph
+          </Button>
+          <Button
+            type="primary"
+            loading={loading}
+            onClick={handleSave}
+            className="w-40"
+          >
+            Save Level 5
+          </Button>
+        </div>
       </Card>
     </div>
   );

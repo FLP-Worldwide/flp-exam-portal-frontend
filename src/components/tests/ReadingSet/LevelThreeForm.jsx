@@ -1,16 +1,29 @@
 'use client';
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, Input, Button, Typography, Divider, message } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
-import api from "../../../utils/axios"; // ✅ your axios instance
+import api from "../../../utils/axios";
 
 const { Title } = Typography;
 
-export default function LevelThreeForm({ testId }) {
-  const [paragraphs, setParagraphs] = useState([
-    { id: Date.now(), paragraph: "", answer: "" },
-  ]);
+export default function LevelThreeForm({ testId, data }) {
+  const [paragraphs, setParagraphs] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // ✅ Prefill from existing data (if available)
+  useEffect(() => {
+    if (data?.content?.paragraphs?.length > 0) {
+      const formatted = data.content.paragraphs.map((p, i) => ({
+        id: Date.now() + i,
+        paragraph: p.paragraph || "",
+        answer: p.answer || "",
+      }));
+      setParagraphs(formatted);
+    } else {
+      // Default empty structure
+      setParagraphs([{ id: Date.now(), paragraph: "", answer: "" }]);
+    }
+  }, [data]);
 
   // ✅ Handle Paragraph and Answer changes
   const handleChange = (id, field, value) => {
@@ -29,44 +42,45 @@ export default function LevelThreeForm({ testId }) {
 
   // ✅ Remove paragraph pair
   const removeParagraph = (id) => {
+    if (paragraphs.length === 1) {
+      toast("At least one paragraph is required!");
+      return;
+    }
     setParagraphs((prev) => prev.filter((p) => p.id !== id));
   };
 
   // ✅ Submit Level 3 data
   const handleSubmit = async () => {
     if (!testId) {
-      return message.error("❌ Test ID missing!");
+      return toast.error("❌ Test ID missing!");
     }
 
-    // Validate empty fields
     const invalid = paragraphs.some(
       (p) => !p.paragraph.trim() || !p.answer.trim()
     );
     if (invalid) {
-      return message.warning("Please fill all paragraphs and answers.");
+      return toast("Please fill all paragraphs and answers.");
     }
 
     const payload = {
-        testId,
-        level: "3",
-        module: "reading",
+      testId,
+      level: "3",
+      module: "reading",
       content: {
         paragraphs: paragraphs.map((p) => ({
-            paragraph: p.paragraph.trim(),
-            answer: p.answer.trim(),
-            })),
-        },
+          paragraph: p.paragraph.trim(),
+          answer: p.answer.trim(),
+        })),
+      },
     };
 
-    
     try {
-        setLoading(true);
-        const res = await api.post("/course-test/details", payload);
-        console.log("Submitting Level 3 res:", res);
-      message.success(res.data?.message || "Level 3 data saved successfully!");
+      setLoading(true);
+      const res = await api.post("/course-test/details", payload);
+      toast.success(res.data?.message || "Level 3 data saved successfully!");
     } catch (err) {
-      console.error(err);
-      message.error("Failed to save Level 3 data!");
+      console.error("Error saving Level 3:", err);
+      toast.error("Failed to save Level 3 data!");
     } finally {
       setLoading(false);
     }
@@ -134,6 +148,7 @@ export default function LevelThreeForm({ testId }) {
         loading={loading}
         onClick={handleSubmit}
         className="mt-6"
+        block
       >
         Save Level 3
       </Button>

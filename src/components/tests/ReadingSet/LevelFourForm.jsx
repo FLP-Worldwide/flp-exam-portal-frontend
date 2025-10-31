@@ -1,12 +1,12 @@
 'use client';
-import React, { useState } from "react";
-import { Card, Input, Button, Typography, Divider, message } from "antd";
+import React, { useState, useEffect } from "react";
+import { Card, Input, Button, Typography, Divider } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import api from "../../../utils/axios";
 
 const { Title } = Typography;
 
-export default function LevelFourForm({ testId }) {
+export default function LevelFourForm({ testId, data }) {
   const [paragraphs, setParagraphs] = useState([
     {
       id: Date.now(),
@@ -14,30 +14,44 @@ export default function LevelFourForm({ testId }) {
       blanks: [
         {
           id: Date.now() + 1,
-          options: ["", "", ""], // first option = correct
+          options: ["", "", ""],
         },
       ],
     },
   ]);
   const [loading, setLoading] = useState(false);
 
+  // ✅ Prefill existing data (if provided)
+  useEffect(() => {
+    if (data?.content?.paragraphs?.length) {
+      const filled = data.content.paragraphs.map((p) => ({
+        id: Date.now() + Math.random(),
+        paragraph: p.paragraph || "",
+        blanks:
+          p.blanks?.map((b) => ({
+            id: Date.now() + Math.random(),
+            options: b.options?.length ? b.options : ["", "", ""],
+          })) || [],
+      }));
+      setParagraphs(filled);
+    }
+  }, [data]);
+
   // 🧩 Detect blanks in paragraph and sync blank groups
   const handleParagraphChange = (id, value) => {
     setParagraphs((prev) =>
       prev.map((p) => {
         if (p.id !== id) return p;
-
         const blankCount = (value.match(/___/g) || []).length;
         const updatedBlanks = Array.from({ length: blankCount }, (_, i) => {
           return p.blanks[i] || { id: Date.now() + i, options: ["", "", ""] };
         });
-
         return { ...p, paragraph: value, blanks: updatedBlanks };
       })
     );
   };
 
-  // ✏️ Update an option inside a blank
+  // ✏️ Update option
   const handleOptionChange = (pId, bId, optIndex, value) => {
     setParagraphs((prev) =>
       prev.map((p) =>
@@ -60,7 +74,7 @@ export default function LevelFourForm({ testId }) {
     );
   };
 
-  // ➕ Add a new option in a blank
+  // ➕ Add a new option
   const addOption = (pId, bId) => {
     setParagraphs((prev) =>
       prev.map((p) =>
@@ -76,7 +90,7 @@ export default function LevelFourForm({ testId }) {
     );
   };
 
-  // ➕ Add a new paragraph
+  // ➕ Add paragraph
   const addParagraph = () => {
     setParagraphs([
       ...paragraphs,
@@ -91,7 +105,7 @@ export default function LevelFourForm({ testId }) {
 
   // 💾 Save data
   const handleSave = async () => {
-    if (!testId) return message.error("❌ Test ID missing!");
+    if (!testId) return toast.error("❌ Test ID missing!");
 
     const payload = {
       testId,
@@ -113,16 +127,18 @@ export default function LevelFourForm({ testId }) {
         (p) => !p.paragraph || p.blanks.some((b) => b.options.length === 0)
       )
     ) {
-      return message.warning("Please complete all paragraphs and blanks.");
+      return toast("Please complete all paragraphs and blanks.");
     }
 
     try {
       setLoading(true);
       const res = await api.post("/course-test/details", payload);
-      message.success(res.data?.message || "Level 4 saved successfully!");
+      toast.success(res.data?.message || "Level 4 saved successfully!");
     } catch (err) {
       console.error("Save Level 4 error:", err);
-      message.error(err.response?.data?.message || "Failed to save Level 4 data!");
+      toast.error(
+        err.response?.data?.message || "Failed to save Level 4 data!"
+      );
     } finally {
       setLoading(false);
     }
@@ -197,10 +213,6 @@ export default function LevelFourForm({ testId }) {
             )}
           </div>
         ))}
-
-        <Divider />
-
-     
 
         <Divider />
 

@@ -1,28 +1,55 @@
 'use client';
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, Input, Button, Form, Typography, Divider, message } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import api from "../../../utils/axios"; // ✅ your axios instance
 
 const { Title } = Typography;
 
-export default function LevelTwoForm({ testId }) {
-  const [paragraphs, setParagraphs] = useState([
-    {
-      id: Date.now(),
-      text: "",
-      questions: [
-        {
-          id: Date.now() + 1,
-          question: "",
-          options: ["", "", ""],
-          answer: "",
-        },
-      ],
-    },
-  ]);
-
+export default function LevelTwoForm({ testId, data }) {
+  const [paragraphs, setParagraphs] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // ✅ Prefill from existing data if available
+  useEffect(() => {
+    if (data?.content?.paragraphs?.length > 0) {
+      const formatted = data.content.paragraphs.map((p, pi) => ({
+        id: Date.now() + pi,
+        text: p.paragraph || "",
+        questions: p.questions?.map((q, qi) => ({
+          id: Date.now() + pi + qi,
+          question: q.question || "",
+          options: q.options?.length ? q.options : ["", "", ""],
+          answer: q.answer || "",
+        })) || [
+          {
+            id: Date.now() + pi + 1,
+            question: "",
+            options: ["", "", ""],
+            answer: "",
+          },
+        ],
+      }));
+
+      setParagraphs(formatted);
+    } else {
+      // Initialize with empty one
+      setParagraphs([
+        {
+          id: Date.now(),
+          text: "",
+          questions: [
+            {
+              id: Date.now() + 1,
+              question: "",
+              options: ["", "", ""],
+              answer: "",
+            },
+          ],
+        },
+      ]);
+    }
+  }, [data]);
 
   // ➕ Add Paragraph
   const addParagraph = () => {
@@ -85,6 +112,15 @@ export default function LevelTwoForm({ testId }) {
     );
   };
 
+  // 🗑️ Delete paragraph
+  const deleteParagraph = (pId) => {
+    if (paragraphs.length === 1) {
+      toast("At least one paragraph is required!");
+      return;
+    }
+    setParagraphs(paragraphs.filter((item) => item.id !== pId));
+  };
+
   // 💾 Handle Save
   const handleSave = async () => {
     const payload = {
@@ -103,9 +139,8 @@ export default function LevelTwoForm({ testId }) {
       },
     };
 
-    // ✅ Basic validation
     if (!payload.content.paragraphs[0]?.paragraph) {
-      message.warning("Please enter at least one paragraph!");
+      toast("Please enter at least one paragraph!");
       return;
     }
 
@@ -114,21 +149,22 @@ export default function LevelTwoForm({ testId }) {
     );
 
     if (!hasQuestions) {
-      message.warning("Please add at least one question!");
+      toast("Please add at least one question!");
       return;
     }
 
     try {
       setLoading(true);
       const res = await api.post("/course-test/details", payload);
-      message.success(res.data?.message || "Level 2 saved successfully!");
+      toast.success(res.data?.message || "Level 2 saved successfully!");
     } catch (error) {
-      message.error(error.response?.data?.message || "Failed to save Level 2!");
+      toast.error(error.response?.data?.message || "Failed to save Level 2!");
     } finally {
       setLoading(false);
     }
   };
 
+  // 🧱 UI
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <Card className="shadow-md border border-gray-200">
@@ -144,9 +180,7 @@ export default function LevelTwoForm({ testId }) {
                   size="small"
                   danger
                   icon={<DeleteOutlined />}
-                  onClick={() =>
-                    setParagraphs(paragraphs.filter((item) => item.id !== p.id))
-                  }
+                  onClick={() => deleteParagraph(p.id)}
                 />
               </div>
 
