@@ -1,5 +1,5 @@
 'use client';
-import ExamTabs from "../../components/ExamTabs";
+import ExamTabs from "../../../../../components/ExamTabs";
 const Admin = ()=>{
     return <ExamTabs />
 }

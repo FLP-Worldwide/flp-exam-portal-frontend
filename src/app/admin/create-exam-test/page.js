@@ -11,6 +11,7 @@ import {
   message,
   Space,
   Radio,
+  Tag,
 } from "antd";
 import { useRouter } from "next/navigation";
 import api from "../../../utils/axios";
@@ -46,6 +47,27 @@ const Exam = () => {
     fetchTests();
   }, []);
 
+  const renderModules = (modules) => {
+  if (!modules || Object.keys(modules).length === 0)
+    return <Tag color="default">No Modules</Tag>;
+
+  // get keys (reading, writing, etc.)
+  const moduleKeys = Object.keys(modules);
+
+  // choose some nice colors (rotate if more)
+  const colors = ["blue", "green", "orange", "purple", "magenta", "red"];
+
+  return (
+    <>
+      {moduleKeys.map((mod, idx) => (
+        <Tag key={mod} color={colors[idx % colors.length]}>
+          {mod.charAt(0).toUpperCase() + mod.slice(1)}
+        </Tag>
+      ))}
+    </>
+  );
+};
+
   // ✅ Table columns
   const columns = [
     {
@@ -68,6 +90,11 @@ const Exam = () => {
       title: "Price (₹)",
       dataIndex: "price",
       key: "price",
+    },
+    {
+      title: "Modules", // 👈 new column
+      key: "modules",
+      render: (_, record) => renderModules(record.modules),
     },
     {
       title: "Actions",

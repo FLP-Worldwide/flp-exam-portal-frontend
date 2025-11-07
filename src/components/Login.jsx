@@ -37,7 +37,7 @@ export default function Login() {
       localStorage.setItem("role", res.data.role);
 
         const role = res.data.role;
-        if (role === "student") router.push("/exam");
+        if (role === "student") router.push("/dashboard");
         else if (role === "teacher") router.push("/admin");
         else if (role === "admin") router.push("/admin");
         else router.push("/");
