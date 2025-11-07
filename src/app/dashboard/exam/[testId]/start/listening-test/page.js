@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Player from '../../../../../components/shared/Player'
+import Player from '../../../../../../components/shared/Player'
 
 export default function ListeningTest() {
   const [isPlaying, setIsPlaying] = useState(false)
