@@ -65,7 +65,6 @@ export default function ExamHeader({
                 <li className="text-gray-300">/</li>
                 <li>Courses</li>
                 <li className="text-gray-300">/</li>
-                <li className="font-medium text-gray-800">CS101</li>
               </ol>
             </nav>
           </div>

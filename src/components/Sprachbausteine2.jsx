@@ -1,87 +1,222 @@
 "use client";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /**
- * Sprachbausteine2 (level 5) — dynamic paragraph + blanks word-bank
+ * Sprachbausteine2 (level 5) — saves answers under grouped array: exam_answers_{testId}.levels[levelKey] = [{id, value}, ...]
  *
  * Props:
- * - questions: array coming from parent (level_5.content.paragraphs)
+ * - questions: array (expecting module.content.paragraphs or single paragraph object)
  * - disabled, onSubmitLevel, testId
+ *
+ * Behavior:
+ * - Uses per-blank keys (prefer blank.questionId or paragraph-based fallback)
+ * - Internal state `usedWords` is a { [blankKey]: word } map for UI
+ * - Persisted storage for the level is an ARRAY under levels[levelKey]
  */
+
 export default function Sprachbausteine2({
   questions = [],
   disabled = false,
   onSubmitLevel = () => {},
   testId = null,
+  levelKey = "level5",
 }) {
-  const [usedWords, setUsedWords] = useState({});
-  const [selectedWord, setSelectedWord] = useState(null);
   const clearingRef = useRef(false);
-
-  // remount key: changing this will fully remount the paragraph/word-bank fragment
   const [remountKey, setRemountKey] = useState(0);
 
-  // Extract paragraph and blanks dynamically (the API shape: questions[0].paragraph and questions[0].blanks (array of strings))
-  const { paragraphText, blanksList } = useMemo(() => {
-    if (!questions || questions.length === 0) return { paragraphText: "", blanksList: [] };
-    const para = questions[0]?.paragraph ?? "";
-    const blanks = Array.isArray(questions[0]?.blanks) ? questions[0].blanks : [];
+  // Read paragraph object (we expect questions to be the raw paragraphs array)
+  const paragraphObj = (Array.isArray(questions) && questions.length > 0) ? questions[0] : null;
 
-    // We want word-bank to be randomized each time the component mounts (but stable while user interacts).
-    const shuffled = [...blanks].sort(() => Math.random() - 0.5);
-    return { paragraphText: para, blanksList: shuffled };
-  }, [questions, remountKey]); // include remountKey so remount causes a new shuffle
+  // paragraph text and raw blanks (could be array of strings or array of blank-objects)
+  const paragraphText = paragraphObj?.paragraph ?? "";
+  const rawBlanks = Array.isArray(paragraphObj?.blanks) ? paragraphObj.blanks : [];
 
-  // select/deselect a word
+  // determine per-blank storage keys (stable)
+  const blankKeys = useMemo(() => {
+    const parentQid = paragraphObj?.questionId ?? paragraphObj?._id ?? paragraphObj?.id ?? null;
+    const keys = rawBlanks.map((rawBlank, i) => {
+      // if blank is object and has questionId-like fields, prefer it
+      if (rawBlank && typeof rawBlank === "object") {
+        const q = rawBlank.questionId ?? rawBlank.question_id ?? rawBlank._qid ?? rawBlank._id ?? rawBlank.id ?? null;
+        if (q) return String(q);
+      }
+      // else if parent paragraph id exists, form per-blank key
+      if (parentQid) {
+        if (/_?blanks[_-]?\d*_?$/.test(parentQid) || parentQid.includes("_blanks_") || parentQid.includes("blanks")) {
+          return `${parentQid}${parentQid.endsWith("_") ? "" : "_"}${i}_`;
+        }
+        return `${parentQid}_blanks_${i}_`;
+      }
+      // final fallback `b{n}`
+      return `b${i + 1}`;
+    });
+    return keys;
+  }, [paragraphObj, rawBlanks]);
+
+  // word bank (shuffled on mount/remount)
+  const blanksList = useMemo(() => {
+    const list = rawBlanks.map((b) => (typeof b === "string" ? b : (b.options ? b.options[0] : (b.text ?? JSON.stringify(b)))));
+    // shuffle copy
+    return [...list].sort(() => Math.random() - 0.5);
+  }, [rawBlanks, remountKey]);
+
+  // --- INIT & MIGRATION: read grouped array if present, else fall back to object or bN ---
+  const loadAndMigrate = () => {
+    try {
+      const raw = testId && typeof window !== "undefined" ? localStorage.getItem(`exam_answers_${testId}`) : null;
+      const parsed = raw ? JSON.parse(raw) : {};
+
+      const initial = {};
+
+      // 1) If grouped array exists for our levelKey, load into initial map
+      if (parsed && parsed.levels && Array.isArray(parsed.levels[levelKey])) {
+        const arr = parsed.levels[levelKey];
+        arr.forEach((it) => {
+          if (it && it.id) initial[it.id] = it.value ?? it.val ?? it.answer ?? it.value === 0 ? it.value : it.value;
+        });
+        return initial;
+      }
+
+      // 2) If grouped object exists (legacy), use those keys
+      if (parsed && parsed.levels && parsed.levels[levelKey] && typeof parsed.levels[levelKey] === "object") {
+        const obj = parsed.levels[levelKey];
+        blankKeys.forEach((k) => {
+          if (obj[k] !== undefined) initial[k] = obj[k];
+        });
+      }
+
+      // 3) Fallback: load top-level flat keys
+      blankKeys.forEach((k) => {
+        if (initial[k] === undefined && parsed && parsed[k] !== undefined) initial[k] = parsed[k];
+      });
+
+      // 4) Migration from bN generated keys -> our blankKeys in order (if any)
+      const autoKeys = Object.keys(parsed || {}).filter((k) => /^b\d+$/.test(k)).sort((a, b) => parseInt(a.replace("b", ""), 10) - parseInt(b.replace("b", ""), 10));
+
+      if (autoKeys.length > 0) {
+        let aidx = 0;
+        for (let i = 0; i < blankKeys.length && aidx < autoKeys.length; i += 1, aidx += 1) {
+          const desiredKey = blankKeys[i];
+          const autoKey = autoKeys[aidx];
+          if (initial[desiredKey] === undefined && parsed && parsed[autoKey] !== undefined) {
+            initial[desiredKey] = parsed[autoKey];
+            // remove autoKey to avoid duplication later
+            delete parsed[autoKey];
+          }
+        }
+
+        // persist merged result as grouped array to avoid future confusion
+        const arrAfter = Object.keys(initial).map((k) => ({ id: k, value: initial[k] }));
+        const mergedAfter = { ...(parsed || {}), levels: { ...(parsed.levels || {}), [levelKey]: arrAfter } };
+        if (testId && typeof window !== "undefined") localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(mergedAfter));
+      }
+
+      return initial;
+    } catch (e) {
+      return {};
+    }
+  };
+
+  const [usedWords, setUsedWords] = useState(() => loadAndMigrate());
+
+  // derived set for quick checks
+  const usedValues = useMemo(() => new Set(Object.values(usedWords || {})), [usedWords]);
+
+  // persist when usedWords changes: write grouped array under levels[levelKey]
+  useEffect(() => {
+    if (!testId || typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(`exam_answers_${testId}`);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const existingLevels = parsed && parsed.levels && typeof parsed.levels === "object" ? { ...parsed.levels } : {};
+
+      const arr = Object.keys(usedWords || {}).map((k) => ({ id: k, value: usedWords[k] }));
+
+      existingLevels[levelKey] = arr;
+
+      const merged = { ...(parsed || {}), levels: existingLevels };
+
+      localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
+    } catch (e) {
+      // ignore
+    }
+  }, [usedWords, testId, levelKey]);
+
+  // select/deselect word and fill blanks
+  const [selectedWord, setSelectedWord] = useState(null);
   const handleWordClick = (word) => {
     if (disabled) return;
-    setSelectedWord((prev) => (prev === word ? null : word));
+    if (usedValues.has(word)) return; // can't select a used word
+    setSelectedWord((s) => (s === word ? null : word));
   };
 
-  // fill a blank (deferred to avoid DOM race)
-  const handleFill = (blankIndex) => {
+  const handleFill = (blankIndexOneBased) => {
     if (disabled) return;
     if (!selectedWord) return;
-    if (Object.values(usedWords).includes(selectedWord)) return;
+    const idx = blankIndexOneBased - 1;
+    const key = blankKeys[idx];
+    if (!key) return;
+    if (usedValues.has(selectedWord)) return;
 
-    // defer DOM update to next frame to avoid event/DOM race
-    requestAnimationFrame(() => {
-      setUsedWords((prev) => ({ ...prev, [blankIndex]: selectedWord }));
-      setSelectedWord(null);
+    setUsedWords((prev) => {
+      const next = { ...(prev || {}) };
+      next[key] = selectedWord;
+      return next;
     });
+
+    setSelectedWord(null);
   };
 
-  const parts = useMemo(() => paragraphText.split("___"), [paragraphText]);
-
-  const handleSubmit = () => {
-    onSubmitLevel(usedWords);
-    // you may prefer a non-alert UX in production
-    alert("Level submitted successfully!");
-  };
-
-  // Clear all safely: remount + deferred state reset + small lock to prevent double clicks
   const handleClearAll = () => {
     if (disabled) return;
     if (clearingRef.current) return;
-
     clearingRef.current = true;
-
-    // defer to next frame to avoid DOM race
     requestAnimationFrame(() => {
-      try {
-        // bump remountKey so the whole fragment remounts (this avoids partial node removals)
-        setRemountKey((k) => k + 1);
-        // clear the answers
-        setUsedWords({});
-        setSelectedWord(null);
-      } finally {
-        // release lock shortly after React has applied updates
-        setTimeout(() => {
-          clearingRef.current = false;
-        }, 30);
-      }
+      setRemountKey((k) => k + 1);
+      setUsedWords({});
+      setSelectedWord(null);
+      setTimeout(() => (clearingRef.current = false), 30);
     });
   };
+
+  const handleSaveProgress = () => {
+    if (!testId) return alert("No testId provided to save progress.");
+    try {
+      const raw = localStorage.getItem(`exam_answers_${testId}`);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const existingLevels = parsed && parsed.levels && typeof parsed.levels === "object" ? { ...parsed.levels } : {};
+      const arr = Object.keys(usedWords || {}).map((k) => ({ id: k, value: usedWords[k] }));
+      existingLevels[levelKey] = arr;
+      const merged = { ...(parsed || {}), levels: existingLevels };
+      localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
+      alert("Progress saved.");
+    } catch {
+      alert("Failed to save progress.");
+    }
+  };
+
+  const handleSubmit = () => {
+    // Build array payload only for these blankKeys
+    const outArray = blankKeys.map((k) => (usedWords[k] !== undefined ? { id: k, value: usedWords[k] } : null)).filter(Boolean);
+
+    // persist
+    try {
+      const raw = testId && typeof window !== "undefined" ? localStorage.getItem(`exam_answers_${testId}`) : null;
+      const parsed = raw ? JSON.parse(raw) : {};
+      const existingLevels = parsed && parsed.levels && typeof parsed.levels === "object" ? { ...parsed.levels } : {};
+      existingLevels[levelKey] = outArray;
+      const merged = { ...(parsed || {}), levels: existingLevels };
+      if (testId) localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
+    } catch (e) {
+      // ignore
+    }
+
+    onSubmitLevel({ [levelKey]: outArray });
+    alert("Level submitted.");
+  };
+
+  // UI parts: split paragraph text by "___"
+  const parts = useMemo(() => paragraphText.split("___"), [paragraphText]);
 
   return (
     <div className="bg-gray-100 min-h-screen font-sans">
@@ -93,9 +228,7 @@ export default function Sprachbausteine2({
         Sie können jedes Wort nur einmal verwenden. Nicht alle Wörter passen in den Text.
       </div>
 
-      {/* REMOUNT FRAGMENT: using key forces React to replace children nodes */}
       <div key={`sb2_${remountKey}`} className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
-        {/* LEFT: paragraph with blanks */}
         <div className="bg-white shadow rounded-lg p-6 text-gray-900 leading-7">
           <p>
             {parts.map((part, i) => (
@@ -105,25 +238,24 @@ export default function Sprachbausteine2({
                   <span
                     onClick={() => handleFill(i + 1)}
                     className={`inline-block ml-1 mr-1 px-2 py-0.5 rounded cursor-pointer hover:bg-blue-200 transition ${
-                      usedWords[i + 1] ? "text-blue-900 font-semibold bg-blue-100" : "text-gray-500 bg-gray-50"
+                      usedWords[blankKeys[i]] ? "text-blue-900 font-semibold bg-blue-100" : "text-gray-500 bg-gray-50"
                     }`}
                   >
-                    {usedWords[i + 1] || `...${i + 1}`}
+                    {usedWords[blankKeys[i]] || `...${i + 1}`}
                   </span>
                 )}
               </React.Fragment>
             ))}
           </p>
 
-          {/* filled summary */}
           <div className="mt-6 text-sm text-gray-700">
             {Object.keys(usedWords).length > 0 && (
               <div>
                 <h3 className="font-semibold mb-1 text-[#004080]">Ihre Auswahl:</h3>
                 <ul className="list-disc list-inside">
-                  {Object.entries(usedWords).map(([idx, word]) => (
-                    <li key={`summary_${idx}`}>
-                      {idx}. <span className="font-medium">{word}</span>
+                  {blankKeys.map((k, idx) => (
+                    <li key={`summary_${k}`}>
+                      {idx + 1}. <span className="font-medium">{usedWords[k] ?? "-"}</span> <span className="text-xs text-gray-400 ml-2">({k})</span>
                     </li>
                   ))}
                 </ul>
@@ -132,7 +264,6 @@ export default function Sprachbausteine2({
           </div>
         </div>
 
-        {/* RIGHT: word bank */}
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="font-semibold text-[#004080] mb-3">
             Wählen Sie ein Wort und klicken Sie auf die Lücke.
@@ -140,11 +271,11 @@ export default function Sprachbausteine2({
 
           <div className="grid grid-cols-2 gap-2">
             {blanksList.map((word, idx) => {
-              const isUsed = Object.values(usedWords).includes(word);
+              const isUsed = usedValues.has(word);
               const isSelected = selectedWord === word;
               return (
                 <div
-                  key={`word_${idx}_${String(word).slice(0,6)}`}
+                  key={`word_${idx}_${String(word).slice(0, 8)}`}
                   onClick={() => handleWordClick(word)}
                   className={`cursor-pointer text-center py-2 rounded border text-sm font-medium transition ${
                     isSelected
@@ -169,15 +300,25 @@ export default function Sprachbausteine2({
               Clear All
             </button>
 
-            <button
-              onClick={handleSubmit}
-              disabled={disabled}
-              className={`px-4 py-2 rounded ${
-                disabled ? "bg-gray-300 text-gray-600 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700"
-              }`}
-            >
-              Submit Level
-            </button>
+            <div className="flex gap-2">
+              {!disabled && (
+                <button
+                  onClick={handleSaveProgress}
+                  className="px-4 py-2 rounded bg-gray-100 text-gray-800 hover:bg-gray-200"
+                >
+                  Save Progress
+                </button>
+              )}
+              <button
+                onClick={handleSubmit}
+                disabled={disabled}
+                className={`px-4 py-2 rounded ${
+                  disabled ? "bg-gray-300 text-gray-600 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700"
+                }`}
+              >
+                Submit Level
+              </button>
+            </div>
           </div>
         </div>
       </div>
