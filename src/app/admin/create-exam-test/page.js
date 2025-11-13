@@ -104,9 +104,9 @@ const Exam = () => {
           <Button type="link" onClick={() => handleAddModule(record._id)}>
             Add Module
           </Button>
-          <Button danger type="link" onClick={() => handleDelete(record._id)}>
+          {/* <Button danger type="link" onClick={() => handleDelete(record._id)}>
             Delete
-          </Button>
+          </Button> */}
         </Space>
       ),
     },

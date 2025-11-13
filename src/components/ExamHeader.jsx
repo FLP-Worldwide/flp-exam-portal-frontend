@@ -5,7 +5,7 @@ import { useExamTimer } from "../components/ExamTimerContext"; // ✅ import con
 
 export default function ExamHeader({
   title = "Exam Portal",
-  subtitle = "Midterm — Computer Science 101",
+  subtitle = "Classroom or Practice Test",
   logoSrc = "https://flpworldwide.com/wp-content/uploads/2024/12/FLP-Logo-e1739693871975-1024x344.png",
   onMenuToggle,
   userName = "Student Name",
