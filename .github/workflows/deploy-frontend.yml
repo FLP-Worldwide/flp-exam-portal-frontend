@@ -22,7 +22,7 @@ jobs:
 
       - name: Build React app
         env:
-          REACT_APP_API_BASE_URL: https://api.testyourgerman.com
+          REACT_APP_API_BASE_URL: http://testyourgerman-flpexam-api-env.eba-erbuwieg.eu-north-1.elasticbeanstalk.com
         run: npm run build
 
       - name: Configure AWS credentials
