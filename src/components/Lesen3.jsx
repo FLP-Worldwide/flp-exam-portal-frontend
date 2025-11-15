@@ -30,16 +30,29 @@ export default function Lesen3({
     const opts = (questions || []).map((_, i) => String.fromCharCode(65 + i));
     return [...opts].sort(() => Math.random() - 0.5);
   }, [questions]);
-
-  // Build stable questionIds (prefer API questionId)
+  // Build questions for RIGHT side – show the short answer text
   const renderedItems = useMemo(() => {
-    return (questions || []).map((p, i) => {
+    const list = Array.isArray(questions) ? questions : [];
+
+    // if you want the answers in random order:
+    const shuffled = [...list].sort(() => Math.random() - 0.5);
+
+    return shuffled.map((p, i) => {
       const qid = p.questionId ?? p._id ?? p.id ?? `q_${i + 1}`;
-      // Visible prompt for the task (if provided)
-      const prompt = p.question ?? p.prompt ?? p.situation ?? p.paragraph ?? `Question ${i + 1}`;
-      return { index: i, qid, prompt, paragraph: p.paragraph ?? "", raw: p };
+
+      // 👇 IMPORTANT: use p.answer first
+      const prompt =
+        (typeof p.answer === "string" && p.answer.trim().length > 0)
+          ? p.answer
+          : p.question ??
+            p.prompt ??
+            p.situation ??
+            `Question ${i + 1}`; // (no fallback to paragraph here)
+
+      return { index: i, qid, prompt, raw: p };
     });
   }, [questions]);
+
 
   const renderedQuestionIds = useMemo(() => renderedItems.map((it) => it.qid), [renderedItems]);
 
@@ -158,7 +171,8 @@ export default function Lesen3({
       <div className="space-y-4">
         <h2 className="text-xl font-semibold text-[#004080] mb-2">Leseverstehen – Teil 3</h2>
         <p className="bg-yellow-50 border-l-4 border-yellow-400 p-3 text-sm text-gray-700 rounded">
-          Lesen Sie die Texte (A–{String.fromCharCode(65 + Math.max(0, leftTexts.length - 1))}) und die Aufgaben (1–{questions.length}).
+          Lesen Sie die Texte (A–
+          {String.fromCharCode(65 + Math.max(0, leftTexts.length - 1))}) und die Aufgaben (1–{renderedItems.length}).
           Welcher Text passt zu welcher Situation? Wählen Sie den passenden Buchstaben.
         </p>
 
@@ -176,7 +190,7 @@ export default function Lesen3({
       {/* RIGHT: Questions and option pool */}
       <div>
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
-          <h3 className="font-semibold text-[#004080]">Aufgaben (1–{questions.length})</h3>
+          <h3 className="font-semibold text-[#004080]">Aufgaben (1–{renderedItems.length})</h3>
           <p className="text-sm text-gray-600">Wählen Sie für jede Situation den passenden Text (A, B, C ...).</p>
         </div>
 
@@ -186,8 +200,9 @@ export default function Lesen3({
             const displayedValue = answers[qid] ?? null;
             return (
               <div key={qid} className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm hover:shadow transition">
-                <p className="text-sm font-medium text-gray-800 mb-2">{idx + 1}. {item.prompt}</p>
-
+                <p className="text-sm font-medium text-gray-800 mb-2">
+                  {idx + 1}. {item.prompt}
+                </p>
                 <div className="flex gap-2 flex-wrap">
                   {rightOptions.map((letter) => {
                     // show selected state by comparing stored title or letter

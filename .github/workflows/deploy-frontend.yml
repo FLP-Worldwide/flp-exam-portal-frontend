@@ -1,0 +1,45 @@
+name: Deploy React Frontend to S3 + CloudFront
+
+on:
+  push:
+    branches: [ main ]   # change if your default branch is different
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build React app
+        env:
+          REACT_APP_API_BASE_URL: http://testyourgerman-flpexam-api-env.eba-erbuwieg.eu-north-1.elasticbeanstalk.com/
+        run: npm run build
+
+      # Upload build/ contents to S3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1   # your region
+
+      - name: Sync build to S3
+        run: |
+          aws s3 sync build/ s3://<<<flpexam-s3bucket >>> \
+            --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id <<<E2KTN59VURNVU7>>> \
+            --paths "/*"

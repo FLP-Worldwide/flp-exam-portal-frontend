@@ -3,10 +3,12 @@
 import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '../utils/axios'; // adjust path if needed
+import { useExamTimer } from "../components/ExamTimerContext"; // ✅ import timer context
 
 export default function TestSubmitBtn() {
   const { testId } = useParams();
   const router = useRouter();
+  const { remainingSeconds, activeTestId } = useExamTimer(); // ⏱️ global timer
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null); // server response summary
@@ -38,13 +40,20 @@ export default function TestSubmitBtn() {
       return;
     }
 
+    // ⛔ BLOCK if exam time is over or this test is not the active timed test
+    if (!activeTestId || activeTestId !== testId || remainingSeconds <= 0) {
+      setError('Exam time has ended. You can no longer submit this test.');
+      alert('Exam time has ended. You can no longer submit this test.');
+      return;
+    }
+
     if (!confirm('Are you sure you want to submit your final answers?')) return;
 
     setSubmitting(true);
     setError(null);
 
     try {
-      // 1) Read reading answers (may contain grouped levels object etc)
+      // 1) Read reading answers
       let readingAnswersRaw = {};
       try {
         const raw = localStorage.getItem(`exam_answers_${testId}`);
@@ -54,18 +63,15 @@ export default function TestSubmitBtn() {
         readingAnswersRaw = {};
       }
 
-      // reading payload: send the full object (server can interpret)
-      // If your backend expects a flat map, you can transform here.
       const reading = {
-        answers: readingAnswersRaw, // full object — includes levels or flat keys
+        answers: readingAnswersRaw,
       };
 
-      // 2) Build writing answers from grouped writing object if present, else fallbacks
+      // 2) Build writing answers
       let writingAnswers = [];
       try {
         const examRaw = localStorage.getItem(`exam_answers_${testId}`);
         const examParsed = examRaw ? JSON.parse(examRaw) : {};
-        // if we stored grouped writing under exam_answers.{writing}
         if (examParsed && examParsed.writing && typeof examParsed.writing === 'object') {
           const writingObj = examParsed.writing;
           const chosen = writingObj.submittedTask || localStorage.getItem(`writing_submitted_${testId}`);
@@ -74,7 +80,6 @@ export default function TestSubmitBtn() {
             const qid = task.qid || localStorage.getItem(`writing_qid_${testId}_${chosen}`);
             if (qid && task.draft) writingAnswers.push({ questionId: qid, answer: task.draft });
           } else {
-            // fallback: include any saved task in writingObj.tasks
             Object.keys(writingObj.tasks || {}).forEach((k) => {
               const t = writingObj.tasks[k];
               const qid = t.qid || localStorage.getItem(`writing_qid_${testId}_${k}`);
@@ -82,7 +87,6 @@ export default function TestSubmitBtn() {
             });
           }
         } else {
-          // old fallback using individual keys
           const draftA = localStorage.getItem(`writing_${testId}_A`) || '';
           const draftB = localStorage.getItem(`writing_${testId}_B`) || '';
           const submittedTask = localStorage.getItem(`writing_submitted_${testId}`);
@@ -104,7 +108,7 @@ export default function TestSubmitBtn() {
       const secondsLeft = Number(localStorage.getItem(`writing_${testId}_secondsLeft`) || 0);
       const assignmentId = localStorage.getItem(`exam_assignment_${testId}`) || null;
 
-      // 3) Completed tabs (if any)
+      // 3) Completed tabs
       let completedTabs = [];
       try {
         const rawCompleted = localStorage.getItem(`exam_completed_${testId}`);
@@ -134,12 +138,11 @@ export default function TestSubmitBtn() {
       const endpoint = `/course-test/course-submit/`;
       const res = await api.post(endpoint, payload);
 
-      // 6) Handle response
-      // Normalize response data for UI: try common fields
-      const success = res?.status === 200 || (res?.data && (res.data.success === true || res.data.status === 'success'));
+      const success =
+        res?.status === 200 ||
+        (res?.data && (res.data.success === true || res.data.status === 'success'));
       const respData = res?.data ?? {};
 
-      // try to extract result info (score / passed / message)
       const resultInfo = {
         message: respData.message ?? 'Submission complete',
         data: respData.data ?? respData.result ?? respData,
@@ -147,31 +150,29 @@ export default function TestSubmitBtn() {
         passed: respData.data?.passed ?? respData.passed ?? null,
       };
 
-      // On success — clear storage and show modal with result
       if (success) {
-        // Clear keys
         clearLocalStorageKeys(testId);
-
-        // Also remove exam_answers_{testId} specifically (already in clearLocalStorageKeys)
         try {
           localStorage.removeItem(`exam_answers_${testId}`);
         } catch {}
-
         setResult(resultInfo);
       } else {
-        // server returned non-200 or non-success payload
         setError(resultInfo.message || 'Server rejected submission.');
         console.warn('Submission failed', res);
       }
     } catch (err) {
       console.error('❌ Final submission error:', err);
-      setError(err?.response?.data?.message || err?.message || 'Something went wrong during submission.');
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Something went wrong during submission.'
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  // If result is present, show a small overlay/modal with the score + button to go to dashboard
+  // If result modal
   if (result) {
     const { message, score, passed, data } = result;
     return (
@@ -193,9 +194,11 @@ export default function TestSubmitBtn() {
             </div>
           ) : null}
 
-          {/* show any extra server data if available */}
           {data ? (
-            <pre className="text-xs text-gray-600 bg-gray-50 p-2 rounded overflow-auto mb-4" style={{ maxHeight: 160 }}>
+            <pre
+              className="text-xs text-gray-600 bg-gray-50 p-2 rounded overflow-auto mb-4"
+              style={{ maxHeight: 160 }}
+            >
               {JSON.stringify(data, null, 2)}
             </pre>
           ) : null}
@@ -203,7 +206,6 @@ export default function TestSubmitBtn() {
           <div className="flex justify-end gap-3">
             <button
               onClick={() => {
-                // go to dashboard (adjust route as needed)
                 router.push('/dashboard');
               }}
               className="px-4 py-2 bg-blue-600 text-white rounded"
@@ -216,7 +218,8 @@ export default function TestSubmitBtn() {
     );
   }
 
-  // If error present, show small inline message (keeps button available)
+  const timeOver = !activeTestId || activeTestId !== testId || remainingSeconds <= 0;
+
   return (
     <>
       {error && (
@@ -227,10 +230,20 @@ export default function TestSubmitBtn() {
         </div>
       )}
 
+      {timeOver && (
+        <div className="fixed left-4 bottom-32 z-40">
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-900 px-4 py-2 rounded shadow">
+            <div className="text-sm">Exam time has ended. Submission is disabled.</div>
+          </div>
+        </div>
+      )}
+
       <button
         onClick={handleSubmit}
-        disabled={submitting}
-        className="bg-[#2563eb] hover:bg-[#1e4fd6] text-white px-4 py-2 rounded-lg fixed bottom-5 right-5 shadow-md"
+        disabled={submitting || timeOver}
+        className={`bg-[#2563eb] text-white px-4 py-2 rounded-lg fixed bottom-5 right-5 shadow-md ${
+          submitting || timeOver ? 'opacity-60 cursor-not-allowed' : 'hover:bg-[#1e4fd6]'
+        }`}
       >
         {submitting ? 'Submitting…' : 'Final Submit'}
       </button>

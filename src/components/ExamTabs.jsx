@@ -363,22 +363,35 @@ function strictSanitizeToPrimitives(item) {
   out._id = String(item._id ?? item.id ?? "no_id");
   out.type = String(item.type ?? "unknown");
 
-  // TEXT: prefer text-like fields
-  out.text = item.text != null ? String(item.text) : (item.question != null ? String(item.question) : "");
-  
-  // PARAGRAPH: prefer explicit paragraph, then parentParagraph, then nested raw paths
+  // TEXT
+  out.text = item.text != null
+    ? String(item.text)
+    : (item.question != null ? String(item.question) : "");
+
+  // PARAGRAPH
   const paragraphFromRaw =
     item.raw?.paragraph ??
     item.raw?.parentParagraph ??
-    (item.raw?.content && (item.raw.content.paragraph ?? (Array.isArray(item.raw.content.paragraphs) && item.raw.content.paragraphs[0]?.paragraph)))
-    ?? null;
+    (item.raw?.content &&
+      (item.raw.content.paragraph ??
+        (Array.isArray(item.raw.content.paragraphs) &&
+          item.raw.content.paragraphs[0]?.paragraph))) ??
+    null;
+
   out.paragraph = item.paragraph != null
     ? String(item.paragraph)
     : (item.parentParagraph != null
       ? String(item.parentParagraph)
       : (paragraphFromRaw != null ? String(paragraphFromRaw) : ""));
 
-  // convert item.options (array of {id,title}) -> array of titles (strings) for child UI
+  // ✅ KEEP ANSWER (for level_3 we need this!)
+  out.answer = item.answer != null
+    ? String(item.answer)
+    : (item.raw && item.raw.answer != null
+        ? String(item.raw.answer)
+        : "");
+
+  // OPTIONS
   if (Array.isArray(item.options)) {
     out.options = item.options.map((o) => {
       if (o && typeof o === "object") return String(o.title ?? o.id ?? JSON.stringify(o));
@@ -388,11 +401,13 @@ function strictSanitizeToPrimitives(item) {
     out.options = [];
   }
 
-  // blanks -> array of arrays of strings (titles)
+  // BLANKS
   if (Array.isArray(item.blanks)) {
     out.blanks = item.blanks.map((b) => {
       if (Array.isArray(b.options)) {
-        return b.options.map((o) => (o && typeof o === "object" ? String(o.title ?? o.id ?? JSON.stringify(o)) : String(o)));
+        return b.options.map((o) =>
+          o && typeof o === "object" ? String(o.title ?? o.id ?? JSON.stringify(o)) : String(o)
+        );
       }
       if (b.answer != null) return [String(b.answer)];
       return [];
@@ -401,10 +416,13 @@ function strictSanitizeToPrimitives(item) {
     out.blanks = [];
   }
 
-  out._debugRaw = item.raw ? (typeof item.raw === "string" ? item.raw : JSON.stringify(item.raw).slice(0, 200)) : "";
+  out._debugRaw = item.raw
+    ? (typeof item.raw === "string" ? item.raw : JSON.stringify(item.raw).slice(0, 200))
+    : "";
 
   return out;
 }
+
 
 
   // ---------- RENDER ACTIVE ----------
