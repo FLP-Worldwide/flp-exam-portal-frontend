@@ -1,6 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import LoaderComp from '../components/shared/LoaderComp'
 
 export default function ProtectedRoute({ children, allowedRoles }) {
   const router = useRouter()
@@ -20,6 +21,6 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     }
   }, [router, allowedRoles])
 
-  if (loading) return <div>Loading...</div>
+  if (loading) return <LoaderComp />
   return children
 }

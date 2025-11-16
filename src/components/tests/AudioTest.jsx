@@ -1,234 +1,563 @@
-"use client"
+"use client";
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState } from "react";
+import {
+  Layout,
+  Card,
+  Typography,
+  Space,
+  Button,
+  Upload,
+  Radio,
+  Input,
+  Row,
+  Col,
+  Spin,
+  message,
+  Popconfirm,
+  Divider,
+  Tag,
+} from "antd";
+import {
+  SoundOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  SaveOutlined,
+  UploadOutlined,
+  PlayCircleOutlined,
+  FormOutlined,
+} from "@ant-design/icons";
+import api from "../../utils/axios";
+import {toast } from 'react-hot-toast'
 
-export default function ListeningAdmin() {
-  const [token, setToken] = useState("")
-  const [questions, setQuestions] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [bulkText, setBulkText] = useState("")
-  const [media, setMedia] = useState({})
-  const [file, setFile] = useState(null)
-  const [isSaving, setIsSaving] = useState(false)
 
-  // Helpers
-  const emptyQuestion = () => ({ text: "", correctAnswer: "true" })
+const { Content } = Layout;
+const { Title, Text } = Typography;
+const { TextArea } = Input;
 
-  // Load existing questions and media (if any)
-  const loadQuestions = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/tests/listening/questions', { headers: { 'x-admin-token': token } })
-      const data = await res.json()
-      if (data.ok && Array.isArray(data.items)) setQuestions(data.items.map(q => ({ ...emptyQuestion(), ...q, correctAnswer: q.correctAnswer ?? (q.answer === true ? 'true' : 'false') })))
-    } catch (err) {
-      console.error(err)
+export default function ListeningAdmin({ testId }) {
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [media, setMedia] = useState(null);
+  const [file, setFile] = useState(null);
+  const [fileList, setFileList] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const emptyQuestion = () => ({ text: "", correctAnswer: "true" });
+
+  // Load existing audio module
+ const loadQuestions = async () => {
+  setLoading(true);
+  try {
+    const res = await api.get(
+      `/course-test/details/${encodeURIComponent(testId)}?module=audio`
+    );
+
+    const d = res?.data?.data; // whole object you showed
+
+    if (!d) {
+      setQuestions([]);
+      setMedia(null);
+      setLoading(false);
+      return;
     }
-    setLoading(false)
-  }
 
-  const loadMedia = async () => {
-    try {
-      const res = await fetch('/api/tests/listening/media', { cache: 'no-store' })
-      const data = await res.json()
-      if (data.ok) setMedia(data)
-    } catch (err) {
-      console.error(err)
+    // 1) modules is an object like:
+    // {
+    //   "level_level_1": {
+    //     module: "audio",
+    //     content: { media, questions }
+    //   }
+    // }
+    const modules = d.modules || {};
+
+    // 2) Pick the audio module entry (you can also filter by level if needed)
+    const audioModuleEntry =
+      Object.values(modules).find((m) => m.module === "audio") || null;
+
+    if (!audioModuleEntry || !audioModuleEntry.content) {
+      // No audio module yet
+      setMedia(null);
+      setQuestions([]);
+      setLoading(false);
+      return;
     }
+
+    const content = audioModuleEntry.content;
+
+    // 3) Prefill audio
+    setMedia(content.media || null);
+
+    // 4) Prefill questions
+    const items = Array.isArray(content.questions)
+      ? content.questions
+      : [];
+
+    setQuestions(
+      items.map((q) => ({
+        text: q.text || "",
+        correctAnswer: q.correctAnswer ? "true" : "false",
+        questionId: q.questionId || null, // keep id if you need it later
+      }))
+    );
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to load questions/audio");
   }
+  setLoading(false);
+};
+
 
   useEffect(() => {
-    loadMedia()
-    loadQuestions()
-    // If you store token somewhere (localStorage), you can load it here
-    const t = typeof window !== 'undefined' ? localStorage.getItem('adminToken') || '' : ''
-    setToken(t)
-  }, [])
+    if (!testId) return;
+    loadQuestions();
+  }, [testId]);
 
-  // File selection
-  const onFileChange = e => setFile(e.target.files?.[0] || null)
+  // Question handlers
+  const addQuestion = () =>
+    setQuestions((prev) => [...prev, emptyQuestion()]);
 
-  // Question operations
-  const addQuestion = () => setQuestions(prev => [...prev, emptyQuestion()])
-  const removeQuestion = idx => setQuestions(prev => prev.filter((_, i) => i !== idx))
+  const removeQuestion = (idx) =>
+    setQuestions((prev) => prev.filter((_, i) => i !== idx));
+
   const handleQuestionChange = (idx, field, value) => {
-    setQuestions(prev => prev.map((q, i) => (i === idx ? { ...q, [field]: value } : q)))
-  }
+    setQuestions((prev) =>
+      prev.map((q, i) => (i === idx ? { ...q, [field]: value } : q))
+    );
+  };
 
-  // Upload audio to server. Returns media object from server or null
+  // Upload handlers
+  const handleUploadChange = (info) => {
+    const newList = info.fileList || [];
+    setFileList(newList);
+
+    const latest = newList[newList.length - 1];
+    if (!latest) {
+      setFile(null);
+      return;
+    }
+
+    const realFile = latest.originFileObj;
+    setFile(realFile || null);
+  };
+
   const uploadAudioFile = async () => {
-    if (!file) return null
-    const fd = new FormData()
-    fd.append('file', file)
+    if (!file) {
+      toast("Please select an audio file first");
+      return null;
+    }
 
-    const res = await fetch('/api/tests/listening/media', {
-      method: 'POST',
-      headers: { 'x-admin-token': token },
-      body: fd,
-    })
-    const data = await res.json()
-    if (data.ok) return data
-    throw new Error(data.error || 'Failed to upload media')
-  }
+    const fd = new FormData();
+    fd.append("file", file);
 
-  // Save questions and associate media path in DB
+    const res = await api.post("/course-test/audio/upload", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    if (!res.data?.success) {
+      throw new Error(res.data?.message || "Upload failed");
+    }
+
+    setMedia(res.data);
+    setFile(null);
+    setFileList([]);
+    return res.data;
+  };
+
   const saveAll = async () => {
-    setIsSaving(true)
+    if (!testId) {
+      message.error("No test selected");
+      return;
+    }
+    setIsSaving(true);
     try {
-      // 1) upload audio if new file selected
-      let uploadedMedia = null
+      let uploadedMedia = null;
       if (file) {
-        uploadedMedia = await uploadAudioFile()
-        await loadMedia()
+        uploadedMedia = await uploadAudioFile();
       }
 
-      // if no file uploaded in this action, but existing media is present, use it
-      const mediaPath = uploadedMedia?.path || media?.path || media?.url || null
+      const mediaPayload = uploadedMedia || media;
+      if (!mediaPayload) {
+        toast("Please upload an audio file before saving");
+        setIsSaving(false);
+        return;
+      }
 
-      // 2) prepare questions payload
-      // ensure correctAnswer is boolean when sending to backend
-      const payloadItems = questions.map((q, i) => ({
-        text: q.text,
-        correctAnswer: q.correctAnswer === 'true',
-      }))
+      const payload = {
+        testId,
+        level: 'level_1', // TODO: replace with actual level
+        module: "audio",
+        content: {
+          media: mediaPayload,
+          questions: questions.map((q) => ({
+            text: q.text,
+            correctAnswer: q.correctAnswer === "true",
+          })),
+        },
+      };
 
-      // 3) send questions to server with mediaPath
-      const res = await fetch('/api/tests/listening/questions', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
-        body: JSON.stringify({ items: payloadItems, mediaPath }),
-      })
-      const data = await res.json()
-      if (!data.ok) throw new Error(data.error || 'Failed to save questions')
+      const res = await api.post("/course-test/details", payload);
+      console.log(res);
+      if (!res.data?.data && !res.data?.success) {
+        throw new Error(res.data?.message || "Save failed");
+      }
 
-      // refresh local data
-      await loadQuestions()
-      await loadMedia()
-      setFile(null)
-      alert('Saved successfully')
+      toast.success("Saved successfully");
     } catch (err) {
-      console.error(err)
-      alert('Save failed: ' + (err.message || err))
+      console.error(err);
+      message.error("Save failed: " + (err.message || err));
     }
-    setIsSaving(false)
-  }
+    setIsSaving(false);
+  };
 
-  // Remove current audio on server
   const deleteAudio = async () => {
-    if (!confirm('Remove current audio?')) return
-    await fetch('/api/tests/listening/media', { method: 'DELETE', headers: { 'x-admin-token': token } })
-    await loadMedia()
-  }
+    setMedia(null);
+    toast.success("Audio removed from this test (frontend state)");
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 flex flex-col items-center">
-      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-md p-6">
-        <h2 className="text-2xl font-semibold mb-4">Listening Test (Dynamic)</h2>
+    <Layout style={{ minHeight: "100vh", background: "#f5f5f5" }}>
+      <Content
+        style={{ padding: 24, display: "flex", justifyContent: "center" }}
+      >
+        <div style={{ width: "100%", maxWidth: 1100 }}>
+          <Space direction="vertical" size="large" style={{ width: "100%" }}>
 
-        {/* AUDIO SECTION */}
-        <div className="border rounded-lg p-4 mb-6">
-          <h3 className="font-semibold mb-3">Test Audio</h3>
-
-          {media?.url ? (
-            <div className="mb-3">
-              <p className="text-sm text-gray-700">
-                Current: <strong>{media.filename || media.name}</strong>{' '}
-                {media.updatedAt ? `(${new Date(media.updatedAt).toLocaleString()})` : ''}
-              </p>
-              <audio controls src={media.url} className="w-full mb-2" />
-              <div className="flex gap-3">
-                <button onClick={deleteAudio} className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Remove Audio</button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 mb-3">No audio uploaded yet.</p>
-          )}
-
-          <div className="flex items-center gap-3">
-            <input type="file" accept="audio/*" onChange={onFileChange} className="border p-2 rounded-md" />
-            <button
-              onClick={async () => {
-                // Quick upload without saving questions
-                if (!file) return alert('Select a file first.')
-                setIsSaving(true)
-                try {
-                  await uploadAudioFile()
-                  await loadMedia()
-                  setFile(null)
-                  alert('Audio uploaded')
-                } catch (err) {
-                  console.error(err)
-                  alert('Upload failed')
-                }
-                setIsSaving(false)
+            <Card
+            bordered={false}
+            style={{
+              width: "100%",
+              borderRadius: 16,
+              marginBottom: 16,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 16,
               }}
-              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
             >
-              Upload Audio
-            </button>
-          </div>
-        </div>
+              {/* LEFT: title + subtitle */}
+              <div style={{ flex: 1 }}>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: 22,
+                    fontWeight: 600,
+                  }}
+                >
+                  Listening Test – Admin
+                </h2>
+                <p
+                  style={{
+                    margin: "4px 0 0",
+                    fontSize: 14,
+                    color: "#8c8c8c",
+                  }}
+                >
+                  Manage audio and true/false questions for the listening exam.
+                </p>
+              </div>
 
-        {/* QUESTIONS EDITOR */}
-        <div className="border rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">Questions</h3>
-            <div className="flex gap-2">
-              <button onClick={addQuestion} className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700">Add Question</button>
+              {/* RIGHT: save button */}
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                onClick={saveAll}
+                loading={isSaving}
+                style={{ height: 40, paddingInline: 20, whiteSpace: "nowrap" }}
+              >
+                Save All (audio + questions)
+              </Button>
             </div>
-          </div>
+          </Card>
 
-          {loading ? (
-            <p>Loading questions...</p>
-          ) : (
-            <div className="space-y-4">
-              {questions.length === 0 && <p className="text-sm text-gray-500">No questions yet. Click "Add Question" to start.</p>}
 
-              {questions.map((q, idx) => (
-                <div key={idx} className="border rounded p-3">
-                  <div className="flex justify-between items-start gap-3">
-                    <div className="flex-1">
-                  
 
-                      <textarea
-                        value={q.text}
-                        onChange={e => handleQuestionChange(idx, 'text', e.target.value)}
-                        placeholder="Question text"
-                        rows={2}
-                        className="border p-2 rounded w-full mb-2"
+
+
+            <Row gutter={[16, 16]}>
+              {/* AUDIO SECTION (unchanged) */}
+              <Col xs={24} lg={12}>
+                <Card
+                  title={
+                    <Space>
+                      <SoundOutlined />
+                      <span>Test Audio</span>
+                    </Space>
+                  }
+                  bordered={false}
+                  style={{ height: "100%" }}
+                >
+                  {media?.url ? (
+                    <Space
+                      direction="vertical"
+                      size="small"
+                      style={{ width: "100%" }}
+                    >
+                      <Text>
+                        Current:{" "}
+                        <Text strong>
+                          {media.filename || media.name || "Audio file"}
+                        </Text>
+                      </Text>
+                      {media.updatedAt && (
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          Last updated:{" "}
+                          {new Date(media.updatedAt).toLocaleString()}
+                        </Text>
+                      )}
+                      <audio
+                        controls
+                        src={media.url}
+                        style={{ width: "100%", marginTop: 8 }}
                       />
 
-                 
+                      <Popconfirm
+                        title="Remove current audio from this test?"
+                        okText="Yes"
+                        cancelText="No"
+                        onConfirm={deleteAudio}
+                      >
+                        <Button
+                          type="primary"
+                          danger
+                          icon={<DeleteOutlined />}
+                          size="small"
+                          style={{ marginTop: 8 }}
+                        >
+                          Remove Audio
+                        </Button>
+                      </Popconfirm>
+                    </Space>
+                  ) : (
+                    <Text type="secondary">No audio uploaded yet.</Text>
+                  )}
 
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <input type="radio" id={`q-${idx}-true`} name={`answer-${idx}`} checked={q.correctAnswer === 'true'} onChange={() => handleQuestionChange(idx, 'correctAnswer', 'true')} />
-                          <label htmlFor={`q-${idx}-true`}>True</label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input type="radio" id={`q-${idx}-false`} name={`answer-${idx}`} checked={q.correctAnswer === 'false'} onChange={() => handleQuestionChange(idx, 'correctAnswer', 'false')} />
-                          <label htmlFor={`q-${idx}-false`}>False</label>
-                        </div>
-                      </div>
+                  <Divider />
+
+                  <Space
+                    direction="vertical"
+                    size="small"
+                    style={{ width: "100%" }}
+                  >
+                    <Upload
+                      accept="audio/*,video/*"
+                      beforeUpload={() => false}
+                      maxCount={1}
+                      fileList={fileList}
+                      onChange={handleUploadChange}
+                      showUploadList={{ showRemoveIcon: true }}
+                    >
+                      <Button icon={<UploadOutlined />}>
+                        {file ? "Change Audio File" : "Select Audio File"}
+                      </Button>
+                    </Upload>
+
+                    <Button
+                      type="default"
+                      icon={<PlayCircleOutlined />}
+                      onClick={async () => {
+                        try {
+                          setIsSaving(true);
+                          const result = await uploadAudioFile();
+                          if (result) {
+                            message.success("Audio uploaded");
+                          }
+                        } catch (err) {
+                          console.error(err);
+                          message.error("Upload failed");
+                        } finally {
+                          setIsSaving(false);
+                        }
+                      }}
+                    >
+                      Upload Audio Only
+                    </Button>
+                  </Space>
+                </Card>
+              </Col>
+
+              {/* QUESTIONS SECTION – beautified */}
+              <Col xs={24} lg={12}>
+                <Card
+                  title={
+                    <Space>
+                      <FormOutlined />
+                      <span>Questions</span>
+                      {questions.length > 0 && (
+                        <Tag color="blue" style={{ borderRadius: 999 }}>
+                          {questions.length} item
+                          {questions.length > 1 ? "s" : ""}
+                        </Tag>
+                      )}
+                    </Space>
+                  }
+                  extra={
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={addQuestion}
+                    >
+                      Add Question
+                    </Button>
+                  }
+                  bordered={false}
+                  style={{ height: "100%" }}
+                  bodyStyle={{ padding: 16 }}
+                >
+                  {loading ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        padding: "40px 0",
+                      }}
+                    >
+                      <Spin tip="Loading questions..." />
                     </div>
+                  ) : (
+                    <Space
+                      direction="vertical"
+                      size="middle"
+                      style={{
+                        width: "100%",
+                        maxHeight: 480,
+                        overflowY: "auto",
+                      }}
+                    >
+                      {questions.length === 0 && (
+                        <div
+                          style={{
+                            padding: 16,
+                            borderRadius: 12,
+                            background: "#fafafa",
+                            border: "1px dashed #e5e5e5",
+                            textAlign: "center",
+                          }}
+                        >
+                          <Text type="secondary">
+                            No questions added yet. Click{" "}
+                            <Text strong>"Add Question"</Text> to create your
+                            first true/false question.
+                          </Text>
+                        </div>
+                      )}
 
-                    <div className="flex flex-col gap-2">
-                      <button onClick={() => setQuestions(prev => prev.map((p, i) => (i === idx ? { ...p, text: p.text } : p)))} className="text-sm text-gray-600">Preview</button>
-                      <button onClick={() => removeQuestion(idx)} className="text-red-600">Remove</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                      {questions.map((q, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            borderRadius: 12,
+                            border: "1px solid #f0f0f0",
+                            background: "#fafafa",
+                            padding: 16,
+                          }}
+                        >
+                          <Space
+                            align="flex-start"
+                            style={{ width: "100%", justifyContent: "space-between" }}
+                          >
+                            {/* Left side: badge + textarea + options */}
+                            <Space
+                              direction="vertical"
+                              style={{ flex: 1 }}
+                              size="small"
+                            >
+                              <Space align="center">
+                                <Tag
+                                  color="processing"
+                                  style={{
+                                    borderRadius: 999,
+                                    padding: "0 10px",
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  Q{idx + 1}
+                                </Tag>
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                  True / False question
+                                </Text>
+                              </Space>
 
-        <div className="flex gap-3 justify-end">
-          <button onClick={saveAll} disabled={isSaving} className="bg-indigo-600 text-white px-5 py-2 rounded-md hover:bg-indigo-700 disabled:bg-indigo-300">
-            {isSaving ? 'Saving…' : 'Save All (audio + questions)'}
-          </button>
+                              <TextArea
+                                value={q.text}
+                                onChange={(e) =>
+                                  handleQuestionChange(
+                                    idx,
+                                    "text",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="Enter question statement..."
+                                rows={2}
+                                style={{
+                                  marginTop: 6,
+                                  background: "#fff",
+                                }}
+                              />
+
+                              <div style={{ marginTop: 4 }}>
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                  Correct answer:
+                                </Text>
+                                <Radio.Group
+                                  style={{ marginLeft: 8 }}
+                                  value={q.correctAnswer}
+                                  onChange={(e) =>
+                                    handleQuestionChange(
+                                      idx,
+                                      "correctAnswer",
+                                      e.target.value
+                                    )
+                                  }
+                                >
+                                  <Radio value="true">True</Radio>
+                                  <Radio value="false">False</Radio>
+                                </Radio.Group>
+                              </div>
+                            </Space>
+
+                            {/* Right side: actions */}
+                            <Space
+                              direction="vertical"
+                              align="flex-end"
+                              size="small"
+                              style={{ minWidth: 80 }}
+                            >
+                              <Popconfirm
+                                title="Remove this question?"
+                                okText="Yes"
+                                cancelText="No"
+                                onConfirm={() => removeQuestion(idx)}
+                              >
+                                <Button
+                                  size="small"
+                                  type="link"
+                                  danger
+                                  icon={<DeleteOutlined />}
+                                  style={{ paddingRight: 0 }}
+                                >
+                                  Remove
+                                </Button>
+                              </Popconfirm>
+                            </Space>
+                          </Space>
+                        </div>
+                      ))}
+                    </Space>
+                  )}
+                </Card>
+              </Col>
+            </Row>
+
+            {/* ACTIONS */}
+            
+          </Space>
         </div>
-      </div>
-    </div>
-  )
+      </Content>
+    </Layout>
+  );
 }

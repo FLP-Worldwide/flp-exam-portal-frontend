@@ -3,6 +3,7 @@
 import {useState} from "react"
 import api from "../utils/axios";
 import { useRouter } from 'next/navigation'
+import LoaderComp from '../components/shared/LoaderComp'
 
 const loginUser = async (email, password) => {
 
@@ -45,13 +46,17 @@ export default function Login() {
 
     } catch (err) {
       setError(err.message || "Invalid credentials");
-    } finally {
-      setLoading(false);
-    }
+    } 
   };
 
 return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
+
+      {loading && (
+        <LoaderComp />
+      )}
+
+
       <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
         {/* Logo */}
         <div className="flex justify-center mb-6">

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../../../utils/axios";
 import toast from "react-hot-toast";
+import LoaderComp from "../../../components/shared/LoaderComp";
 
 const StudentList = () => {
   const [students, setStudents] = useState([]);
@@ -12,20 +13,26 @@ const StudentList = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedTestId, setSelectedTestId] = useState(null);
   const [formData, setFormData] = useState({ name: "", email: "" });
+   const [loading, setLoading] = useState(true);
+
+   const fetchStudents = async () => {
+  try {
+    setLoading(true);
+    const type = "student";
+    const response = await api.get(`user/list/${type}`);
+    const data = response?.data?.data?.data || [];
+    setStudents(data);
+  } catch (error) {
+    console.error("Error fetching students:", error);
+    toast.error("Failed to load students");
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ✅ Fetch students
   useEffect(() => {
-    const fetchStudents = async () => {
-      try {
-        const type = "student";
-        const response = await api.get(`user/list/${type}`);
-        // Fix nested data structure
-        const data = response?.data?.data?.data || [];
-        setStudents(data);
-      } catch (error) {
-        console.error("Error fetching students:", error);
-      }
-    };
+
     fetchStudents();
   }, []);
 
@@ -58,6 +65,7 @@ const StudentList = () => {
       setStudents([...students, response.data]);
       handleCloseModal();
       toast.success("Student created successfully!");
+      await fetchStudents();
     } catch (error) {
       console.error(error);
       toast.error("Failed to create student");
@@ -129,6 +137,10 @@ const StudentList = () => {
 
       {/* Table */}
       <div className="overflow-x-auto">
+
+        {loading ? (
+            <LoaderComp />
+        ):(
         <table className="min-w-full bg-white border rounded-lg">
           <thead className="bg-gray-100">
             <tr>
@@ -176,6 +188,8 @@ const StudentList = () => {
             )}
           </tbody>
         </table>
+        )}
+        
       </div>
 
       {/* ✅ Create Student Modal */}

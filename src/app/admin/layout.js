@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo,useEffect } from 'react'
 import {
   UserOutlined,
   MenuFoldOutlined,
@@ -14,6 +14,7 @@ import { Button, Layout, Menu, theme, Space } from 'antd'
 import { usePathname, useRouter } from 'next/navigation'
 import ProtectedRoute from '../../utils/ProtectedRoute'
 import { Toaster } from "react-hot-toast";
+import LoaderComp from '../../components/shared/LoaderComp'
 
 const { Header, Content, Footer, Sider } = Layout
 
@@ -31,6 +32,11 @@ const siderStyle = {
 // Menu config
 const MENU_ITEMS = [
   {
+    key: '/admin',
+    icon: React.createElement(DiffOutlined),
+    label: 'Dashboard',
+  },
+  {
     key: '/admin/create-exam-test',
     icon: React.createElement(DiffOutlined),
     label: 'Create Exam Test',
@@ -40,20 +46,24 @@ const MENU_ITEMS = [
     icon: React.createElement(UsergroupAddOutlined),
     label: 'Student',
   },
-  {
-    key: '/admin/teacher',
-    icon: React.createElement(UserAddOutlined),
-    label: 'Teacher',
-  },
-  {
-    key: '/admin/test-sale-order',
-    icon: React.createElement(DollarOutlined),
-    label: 'Test Sale Order',
-  },
+  // {
+  //   key: '/admin/teacher',
+  //   icon: React.createElement(UserAddOutlined),
+  //   label: 'Teacher',
+  // },
+  // {
+  //   key: '/admin/test-sale-order',
+  //   icon: React.createElement(DollarOutlined),
+  //   label: 'Test Sale Order',
+  // },
 ]
 
 export default function AdminLayout({ children }) {
   const [collapsed, setCollapsed] = useState(false)
+   const [navLoading, setNavLoading] = useState(false)   
+
+
+
   const {
     token: { colorBgContainer },
   } = theme.useToken()
@@ -62,10 +72,22 @@ export default function AdminLayout({ children }) {
   const router = useRouter()
 
   // Selected menu key
-  const selectedKeys = useMemo(() => {
-    const match = MENU_ITEMS.find(it => pathname?.startsWith(it.key))
-    return [match?.key || MENU_ITEMS[0].key]
+    const selectedKeys = useMemo(() => {
+    if (!pathname) return [MENU_ITEMS[0].key]
+
+    const matched = MENU_ITEMS
+      .filter(it =>
+        pathname === it.key || pathname.startsWith(it.key + '/') || pathname.startsWith(it.key)
+      )
+      .sort((a, b) => b.key.length - a.key.length)[0] // longest key wins
+
+    return [matched?.key || MENU_ITEMS[0].key]
   }, [pathname])
+
+   useEffect(() => {
+    setNavLoading(false)
+  }, [pathname])
+
 
   // Logout handler
   const handleLogout = () => {
@@ -77,6 +99,11 @@ export default function AdminLayout({ children }) {
   return (
     <ProtectedRoute allowedRoles={['admin', 'teacher']}>
     <Layout hasSider>
+
+        {navLoading && (
+        <LoaderComp/>
+        )}
+
       <Sider trigger={null} style={siderStyle} collapsible collapsed={collapsed}>
         <div className="text-white text-center font-bold py-3">
           {collapsed ? 'FLP' : 'FLP EXAM PORTAL'}
@@ -120,7 +147,7 @@ export default function AdminLayout({ children }) {
           </Space>
         </Header>
 
-        <Content className="p-6" style={{ margin: '24px 16px 0', overflow: 'initial' }}>
+        <Content className="p-2" style={{ overflow: 'initial' }}>
           {children}
         </Content>
 

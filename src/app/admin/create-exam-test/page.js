@@ -124,10 +124,10 @@ const Exam = () => {
       };
 
       const response = await api.post("course-test/create", payload);
-      toast.success("New test created successfully!");
       setTests((prev) => [...prev, response.data.data]);
       setIsTestModalOpen(false);
       form.resetFields();
+      toast.success("New test created successfully!");
     } catch (error) {
       console.error("Error creating test:", error);
       toast.error("Failed to create test!");
@@ -166,6 +166,7 @@ const Exam = () => {
 
   return (
     <>
+    <div className="p-8">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Exam Test List</h1>
         <Button type="primary" onClick={() => setIsTestModalOpen(true)}>
@@ -247,6 +248,7 @@ const Exam = () => {
           ))}
         </Radio.Group>  
       </Modal>
+      </div>
     </>
   );
 };

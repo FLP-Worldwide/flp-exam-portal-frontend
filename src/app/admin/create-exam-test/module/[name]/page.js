@@ -15,7 +15,6 @@ export default function ModulePage() {
 
   return (
     <div>
-      <h1>Module: {name}</h1>
       {name === "reading" && <ReadingTest testId={testId} />}
       {name === "writing" && <WritingTest testId={testId} />}
       {name === "audio" && <AudioTest testId={testId} />}
