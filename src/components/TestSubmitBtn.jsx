@@ -2,16 +2,16 @@
 
 import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import api from '../utils/axios'; // adjust path if needed
-import { useExamTimer } from "../components/ExamTimerContext"; // ✅ import timer context
+import api from '../utils/axios';
+import { useExamTimer } from "../components/ExamTimerContext";
 
 export default function TestSubmitBtn() {
   const { testId } = useParams();
   const router = useRouter();
-  const { remainingSeconds, activeTestId, stopTimer } = useExamTimer(); // ⏱️ global timer
+  const { remainingSeconds, activeTestId, stopTimer } = useExamTimer();
 
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState(null); // server response summary
+  const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
   const clearLocalStorageKeys = (tid) => {
@@ -26,7 +26,7 @@ export default function TestSubmitBtn() {
       `writing_qid_${tid}_A`,
       `writing_qid_${tid}_B`,
       `exam_assignment_${tid}`,
-      `audio_${tid}`, 
+      `audio_${tid}`,
       `exam_end_${tid}`,
     ];
     keysToClear.forEach((k) => {
@@ -42,7 +42,7 @@ export default function TestSubmitBtn() {
       return;
     }
 
-    // ⛔ BLOCK if exam time is over or this test is not the active timed test
+    // block if timer over or wrong test
     if (!activeTestId || activeTestId !== testId || remainingSeconds <= 0) {
       setError('Exam time has ended. You can no longer submit this test.');
       alert('Exam time has ended. You can no longer submit this test.');
@@ -55,7 +55,7 @@ export default function TestSubmitBtn() {
     setError(null);
 
     try {
-      // 1) Read reading answers
+      // 1) reading answers
       let readingAnswersRaw = {};
       try {
         const raw = localStorage.getItem(`exam_answers_${testId}`);
@@ -69,7 +69,7 @@ export default function TestSubmitBtn() {
         answers: readingAnswersRaw,
       };
 
-      // 2) Build writing answers
+      // 2) writing answers
       let writingAnswers = [];
       try {
         const examRaw = localStorage.getItem(`exam_answers_${testId}`);
@@ -106,8 +106,8 @@ export default function TestSubmitBtn() {
         console.warn('Building writing answers failed:', e);
       }
 
+      // 3) audio answers
       let audioAnswers = [];
-
       try {
         const raw = localStorage.getItem(`exam_answers_${testId}`);
         const parsed = raw ? JSON.parse(raw) : {};
@@ -121,17 +121,17 @@ export default function TestSubmitBtn() {
 
         audioAnswers = Object.entries(audioObj).map(([qid, val]) => ({
           questionId: qid,
-          answer: val === "richtig" || val === true ? true : false,
+          // support boolean + "true"/"false" + "richtig"
+          answer: val === true || val === "true" || val === "richtig",
         }));
       } catch (e) {
         console.warn("Failed to extract audio answers:", e);
       }
 
-      const startedAt = localStorage.getItem(`writing_${testId}_startedAt`) || localStorage.getItem(`writing_${testId}_startedAt`);
+      const startedAt = localStorage.getItem(`writing_${testId}_startedAt`);
       const secondsLeft = Number(localStorage.getItem(`writing_${testId}_secondsLeft`) || 0);
       const assignmentId = localStorage.getItem(`exam_assignment_${testId}`) || null;
 
-      // 3) Completed tabs
       let completedTabs = [];
       try {
         const rawCompleted = localStorage.getItem(`exam_completed_${testId}`);
@@ -140,7 +140,8 @@ export default function TestSubmitBtn() {
         completedTabs = [];
       }
 
-      // 4) Build payload
+      const nowIso = new Date().toISOString();
+
       const payload = {
         testId,
         assignmentId,
@@ -149,19 +150,18 @@ export default function TestSubmitBtn() {
           answers: writingAnswers,
           startedAt: startedAt || null,
           secondsLeft: secondsLeft || 0,
-          submittedAt: new Date().toISOString(),
+          submittedAt: nowIso,
         },
-        audio: audioAnswers, 
+        audio: audioAnswers,
         completedTabs,
-        submittedAt: new Date().toISOString(),
+        submittedAt: nowIso,
       };
 
       console.log('Final Submit Payload:', payload);
 
-      // 5) POST to server
       const endpoint = `/course-test/course-submit/`;
       const res = await api.post(endpoint, payload);
-      console.log(res,"=========");
+
       const success =
         res?.status === 200 ||
         (res?.data && (res.data.success === true || res.data.status === 'success'));
@@ -170,7 +170,12 @@ export default function TestSubmitBtn() {
       const resultInfo = {
         message: respData.message ?? 'Submission complete',
         data: respData.data ?? respData.result ?? respData,
-        score: respData.data?.score ?? respData.score ?? respData.data?.marks ?? respData.marks ?? null,
+        score:
+          respData.data?.score ??
+          respData.score ??
+          respData.data?.marks ??
+          respData.marks ??
+          null,
         passed: respData.data?.passed ?? respData.passed ?? null,
       };
 
@@ -179,7 +184,6 @@ export default function TestSubmitBtn() {
         try {
           localStorage.removeItem(`exam_answers_${testId}`);
           stopTimer();
-          
         } catch {}
         setResult(resultInfo);
       } else {
@@ -198,43 +202,162 @@ export default function TestSubmitBtn() {
     }
   };
 
-  // If result modal
+  // ---------- Result Modal UI ----------
   if (result) {
     const { message, score, passed, data } = result;
+
+    const totalQuestions = data?.totalQuestions ?? null;
+    const totalMarks = data?.totalMarks ?? null;
+    const earnedMarks = data?.earnedMarks ?? null;
+    const status = data?.status ?? 'completed';
+
+    const perModule = data?.perModuleSummary || {};
+    const audioSummary = data?.audio || null;
+
+    const percent =
+      totalMarks && earnedMarks !== null && earnedMarks !== undefined
+        ? Math.round((earnedMarks / totalMarks) * 100)
+        : null;
+
+    const moduleOrder = ['reading', 'audio', 'writing'];
+
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="bg-white max-w-md w-full rounded-lg shadow-lg p-6">
-          <h2 className="text-lg font-semibold mb-2">Test submitted</h2>
+        <div className="bg-white max-w-xl w-full rounded-2xl shadow-xl p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Test submitted
+            </h2>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                status === 'completed'
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'bg-amber-50 text-amber-700'
+              }`}
+            >
+              {status === 'completed' ? 'Completed' : status}
+            </span>
+          </div>
           <p className="text-sm text-gray-700 mb-4">{message}</p>
 
-          {score !== null && score !== undefined ? (
-            <div className="mb-4">
-              <div className="text-3xl font-bold">{score}</div>
-              <div className="text-sm text-gray-600">Score</div>
+          {/* Overall stats */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+              <div className="text-[11px] uppercase tracking-wide text-gray-500">
+                Total questions
+              </div>
+              <div className="mt-1 text-lg font-semibold text-gray-900">
+                {totalQuestions ?? '--'}
+              </div>
             </div>
-          ) : null}
 
-          {typeof passed === 'boolean' ? (
-            <div className={`mb-4 font-semibold ${passed ? 'text-green-600' : 'text-red-600'}`}>
-              {passed ? 'You passed the test' : 'You did not pass the test'}
+            <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+              <div className="text-[11px] uppercase tracking-wide text-gray-500">
+                Total marks
+              </div>
+              <div className="mt-1 text-lg font-semibold text-gray-900">
+                {totalMarks ?? '--'}
+              </div>
             </div>
-          ) : null}
 
-          {data ? (
-            <pre
-              className="text-xs text-gray-600 bg-gray-50 p-2 rounded overflow-auto mb-4"
-              style={{ maxHeight: 160 }}
+            <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+              <div className="text-[11px] uppercase tracking-wide text-gray-500">
+                Earned marks
+              </div>
+              <div className="mt-1 text-lg font-semibold text-gray-900">
+                {earnedMarks ?? '--'}
+              </div>
+              {percent !== null && (
+                <div className="text-xs text-gray-500">
+                  {percent}% overall
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Pass / fail if available */}
+          {typeof passed === 'boolean' && (
+            <div
+              className={`mb-3 rounded-lg px-3 py-2 text-sm font-medium ${
+                passed
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'bg-red-50 text-red-700'
+              }`}
             >
-              {JSON.stringify(data, null, 2)}
-            </pre>
-          ) : null}
+              {passed ? 'You passed this test.' : 'You did not pass this test.'}
+            </div>
+          )}
 
-          <div className="flex justify-end gap-3">
+          {/* Per-module breakdown */}
+          <div className="mb-4">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Module breakdown
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {moduleOrder.map((key) => {
+                const mod = perModule[key] || {};
+                const points = mod.points ?? 0;
+                const maxPoints = mod.maxPoints ?? 0;
+                const p =
+                  maxPoints > 0
+                    ? Math.round((points / maxPoints) * 100)
+                    : 0;
+
+                const label =
+                  key === 'reading'
+                    ? 'Reading'
+                    : key === 'audio'
+                    ? 'Listening'
+                    : 'Writing';
+
+                return (
+                  <div
+                    key={key}
+                    className="rounded-lg border border-gray-100 bg-white px-3 py-2"
+                  >
+                    <div className="text-xs font-medium text-gray-700">
+                      {label}
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-gray-900">
+                      {points} / {maxPoints}
+                    </div>
+                    <div className="text-[11px] text-gray-500">{p}%</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Optional extra audio details (questions/points) */}
+          {audioSummary && (
+            <div className="mb-4 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+              <div className="flex items-center justify-between text-xs text-gray-600">
+                <span>
+                  Listening questions:{" "}
+                  <strong>{audioSummary.totalQuestions}</strong>
+                </span>
+                <span>
+                  Listening marks:{" "}
+                  <strong>
+                    {audioSummary.earnedPoints} / {audioSummary.maxPoints}
+                  </strong>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Footer buttons */}
+          <div className="mt-4 flex justify-end gap-3">
             <button
-              onClick={() => {
-                router.push('/dashboard');
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded"
+              onClick={() => setResult(null)}
+              className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              Close
+            </button>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700"
             >
               Go to dashboard
             </button>
@@ -244,7 +367,9 @@ export default function TestSubmitBtn() {
     );
   }
 
-  const timeOver = !activeTestId || activeTestId !== testId || remainingSeconds <= 0;
+  // ---------- Floating submit button + error banners ----------
+  const timeOver =
+    !activeTestId || activeTestId !== testId || remainingSeconds <= 0;
 
   return (
     <>
@@ -259,7 +384,9 @@ export default function TestSubmitBtn() {
       {timeOver && (
         <div className="fixed left-4 bottom-32 z-40">
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-900 px-4 py-2 rounded shadow">
-            <div className="text-sm">Exam time has ended. Submission is disabled.</div>
+            <div className="text-sm">
+              Exam time has ended. Submission is disabled.
+            </div>
           </div>
         </div>
       )}
