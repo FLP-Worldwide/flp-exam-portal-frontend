@@ -15,7 +15,7 @@ export default function Lesen3({
   testId = null,
   levelKey = "level3",
 }) {
-  // leftTexts: transform paragraphs into objects { id: 'A', title, content }
+  // LEFT: texts A, B, C...
   const leftTexts = useMemo(() => {
     if (!Array.isArray(questions) || questions.length === 0) return [];
     return questions.map((p, i) => ({
@@ -25,38 +25,38 @@ export default function Lesen3({
     }));
   }, [questions]);
 
-  // option pool (letters), optionally shuffled
+  // pool of letters (shuffled)
   const rightOptions = useMemo(() => {
     const opts = (questions || []).map((_, i) => String.fromCharCode(65 + i));
     return [...opts].sort(() => Math.random() - 0.5);
   }, [questions]);
-  // Build questions for RIGHT side – show the short answer text
+
+  // questions for RIGHT side
   const renderedItems = useMemo(() => {
     const list = Array.isArray(questions) ? questions : [];
-
-    // if you want the answers in random order:
     const shuffled = [...list].sort(() => Math.random() - 0.5);
 
     return shuffled.map((p, i) => {
       const qid = p.questionId ?? p._id ?? p.id ?? `q_${i + 1}`;
 
-      // 👇 IMPORTANT: use p.answer first
       const prompt =
-        (typeof p.answer === "string" && p.answer.trim().length > 0)
+        typeof p.answer === "string" && p.answer.trim().length > 0
           ? p.answer
           : p.question ??
             p.prompt ??
             p.situation ??
-            `Question ${i + 1}`; // (no fallback to paragraph here)
+            `Question ${i + 1}`;
 
       return { index: i, qid, prompt, raw: p };
     });
   }, [questions]);
 
+  const renderedQuestionIds = useMemo(
+    () => renderedItems.map((it) => it.qid),
+    [renderedItems]
+  );
 
-  const renderedQuestionIds = useMemo(() => renderedItems.map((it) => it.qid), [renderedItems]);
-
-  // initial state: prefer initialAnswers, else pick from localStorage grouped shape or fallback flat
+  // initial answers
   const getInitialState = () => {
     try {
       const start = { ...(initialAnswers || {}) };
@@ -66,16 +66,28 @@ export default function Lesen3({
         if (raw) {
           const parsed = JSON.parse(raw);
 
-          // 1) grouped shape
+          // grouped
           if (parsed && parsed.levels && parsed.levels[levelKey]) {
             const lvl = parsed.levels[levelKey];
             renderedQuestionIds.forEach((qid) => {
-              if (start[qid] === undefined && lvl && lvl[qid] !== undefined) start[qid] = lvl[qid];
+              if (
+                start[qid] === undefined &&
+                lvl &&
+                lvl[qid] !== undefined
+              ) {
+                start[qid] = lvl[qid];
+              }
             });
           } else {
-            // 2) fallback flat shape (older saves)
+            // fallback flat
             renderedQuestionIds.forEach((qid) => {
-              if (start[qid] === undefined && parsed && parsed[qid] !== undefined) start[qid] = parsed[qid];
+              if (
+                start[qid] === undefined &&
+                parsed &&
+                parsed[qid] !== undefined
+              ) {
+                start[qid] = parsed[qid];
+              }
             });
           }
         }
@@ -88,31 +100,29 @@ export default function Lesen3({
 
   const [answers, setAnswers] = useState(() => getInitialState());
 
-  // persist whenever answers change (merge into grouped storage levels[levelKey])
+  // persist grouped
   useEffect(() => {
     if (!testId) return;
     try {
       const raw = localStorage.getItem(`exam_answers_${testId}`);
       const parsed = raw ? JSON.parse(raw) : {};
-      const levels = parsed && parsed.levels && typeof parsed.levels === "object" ? { ...parsed.levels } : {};
+      const levels =
+        parsed && parsed.levels && typeof parsed.levels === "object"
+          ? { ...parsed.levels }
+          : {};
       levels[levelKey] = { ...(levels[levelKey] || {}), ...(answers || {}) };
       const merged = { ...(parsed || {}), levels };
       localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
   }, [answers, testId, levelKey]);
 
-  // helper: map letter -> leftText title
-  const letterToTitle = (letter) => leftTexts.find((t) => t.id === letter)?.title ?? letter;
+  // helpers
+  const letterToTitle = (letter) =>
+    leftTexts.find((t) => t.id === letter)?.title ?? letter;
 
-  // select handler: stores under real questionId. We store title by default.
+  // simple select (no uniqueness across questions)
   const handleSelect = (qid, letter) => {
     if (disabled) return;
-
-    // Choose what to store:
-    // - storeTitle = true  -> save left-text title (default)
-    // - storeTitle = false -> save letter (A/B/C)
     const storeTitle = true;
     const valueToStore = storeTitle ? letterToTitle(letter) : letter;
 
@@ -123,7 +133,7 @@ export default function Lesen3({
     });
   };
 
-  // optional unique selection handler (uncomment use if required)
+  // optional unique version (kept for future use)
   const handleSelectUnique = (qid, letter) => {
     if (disabled) return;
     const storeTitle = true;
@@ -131,7 +141,6 @@ export default function Lesen3({
 
     setAnswers((prev) => {
       const next = { ...(prev || {}) };
-      // remove same value from other qids
       Object.keys(next).forEach((k) => {
         if (next[k] === valueToStore) delete next[k];
       });
@@ -141,99 +150,176 @@ export default function Lesen3({
   };
 
   const handleSubmit = () => {
-    // Only include the rendered qids in the payload
     const payload = {};
     renderedQuestionIds.forEach((qid) => {
       if (answers[qid] !== undefined) payload[qid] = answers[qid];
     });
 
-    // Merge one last time into localStorage under grouped shape
     try {
       if (testId) {
         const raw = localStorage.getItem(`exam_answers_${testId}`);
         const parsed = raw ? JSON.parse(raw) : {};
-        const levels = parsed && parsed.levels && typeof parsed.levels === "object" ? { ...parsed.levels } : {};
+        const levels =
+          parsed && parsed.levels && typeof parsed.levels === "object"
+            ? { ...parsed.levels }
+            : {};
         levels[levelKey] = { ...(levels[levelKey] || {}), ...payload };
         const merged = { ...(parsed || {}), levels };
         localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
       }
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
 
-    // call parent with grouped payload similar to other levels
     onSubmitLevel({ [levelKey]: payload });
   };
 
+  // ---------- UI ----------
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* LEFT: Paragraphs A, B, C */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-[#004080] mb-2">Leseverstehen – Teil 3</h2>
-        <p className="bg-yellow-50 border-l-4 border-yellow-400 p-3 text-sm text-gray-700 rounded">
-          Lesen Sie die Texte (A–
-          {String.fromCharCode(65 + Math.max(0, leftTexts.length - 1))}) und die Aufgaben (1–{renderedItems.length}).
-          Welcher Text passt zu welcher Situation? Wählen Sie den passenden Buchstaben.
-        </p>
-
-        {leftTexts.map((t) => (
-          <div key={t.id} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-lg font-bold text-[#004080]">{t.id}</span>
-              <span className="text-sm text-gray-500">{t.title}</span>
-            </div>
-            <p className="text-sm text-gray-700 leading-relaxed">{t.content}</p>
+    <div className="w-full">
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 md:p-6">
+        {/* Header */}
+        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="max-w-2xl">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Level 3 – Match texts to situations
+            </h2>
+            <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
+              Read the texts on the left (A, B, C, …) and the situations on the
+              right. For each situation, choose which text fits best.
+            </p>
           </div>
-        ))}
-      </div>
 
-      {/* RIGHT: Questions and option pool */}
-      <div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
-          <h3 className="font-semibold text-[#004080]">Aufgaben (1–{renderedItems.length})</h3>
-          <p className="text-sm text-gray-600">Wählen Sie für jede Situation den passenden Text (A, B, C ...).</p>
+          <div className="flex flex-wrap gap-2 md:gap-3 md:justify-end">
+            {/* no manual save button here — answers auto-save, but you could add one if you want */}
+            
+            <button
+              onClick={handleSubmit}
+              disabled={disabled}
+              className={`px-5 py-1.5 rounded-full text-xs md:text-sm font-medium ${
+                disabled
+                  ? "bg-slate-300 text-slate-600 cursor-not-allowed"
+                  : "bg-emerald-600 text-white hover:bg-emerald-700"
+              }`}
+            >
+              Submit Level
+            </button>
+          </div>
         </div>
 
-        <div className="space-y-3">
-          {renderedItems.map((item, idx) => {
-            const qid = item.qid;
-            const displayedValue = answers[qid] ?? null;
-            return (
-              <div key={qid} className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm hover:shadow transition">
-                <p className="text-sm font-medium text-gray-800 mb-2">
-                  {idx + 1}. {item.prompt}
-                </p>
-                <div className="flex gap-2 flex-wrap">
-                  {rightOptions.map((letter) => {
-                    // show selected state by comparing stored title or letter
-                    const storeTitle = true;
-                    const expected = storeTitle ? letterToTitle(letter) : letter;
-                    const isSelected = displayedValue === expected;
-                    return (
-                      <button
-                        key={`${qid}_${letter}`}
-                        onClick={() => handleSelect(qid, letter)} // use handleSelectUnique if you want uniqueness
-                        className={`px-3 py-1 border rounded text-sm font-semibold transition ${isSelected ? "bg-[#004080] text-white border-[#004080]" : "border-gray-300 hover:bg-blue-100"}`}
-                        disabled={disabled}
-                      >
-                        {letter}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* show selected stored label for debug */}
-                {displayedValue ? <div className="mt-2 text-sm text-gray-600">Selected: <span className="font-medium">{displayedValue}</span></div> : null}
-
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+          {/* LEFT: Texts A, B, C... */}
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm mb-1">
+              <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+                <span className="inline-flex items-center justify-center rounded-full bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5">
+                  Reading Texts
+                </span>
               </div>
-            );
-          })}
-        </div>
+              <div className="px-4 py-3 text-xs md:text-sm text-slate-700 leading-relaxed">
+                Read each text carefully. You will later decide which text fits
+                each situation on the right.
+              </div>
+            </div>
 
-        <div className="mt-4 flex justify-end">
-          <button onClick={handleSubmit} disabled={disabled} className={`px-4 py-2 rounded ${disabled ? "bg-gray-300 text-gray-600" : "bg-green-600 text-white"}`}>
-            Submit Level
-          </button>
+            {leftTexts.length === 0 ? (
+              <div className="p-6 text-slate-500 text-sm bg-white rounded-lg border border-dashed border-slate-200 text-center">
+                No texts available for this level.
+              </div>
+            ) : (
+              leftTexts.map((t) => (
+                <div
+                  key={t.id}
+                  className="border border-slate-200 rounded-lg p-4 bg-white shadow-sm hover:border-slate-300 hover:shadow-md transition"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="inline-flex items-center justify-center rounded-full bg-blue-50 text-blue-700 text-sm font-semibold px-3 py-0.5">
+                      {t.id}
+                    </span>
+                    <span className="text-xs md:text-sm text-slate-500 truncate max-w-[60%]">
+                      {t.title}
+                    </span>
+                  </div>
+                  <p className="text-xs md:text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">
+                    {t.content}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* RIGHT: Situations and letter choices */}
+          <div className="flex flex-col h-full">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
+              <h3 className="font-semibold text-[#004080] text-sm md:text-base">
+                Situations (1–{renderedItems.length})
+              </h3>
+              <p className="text-xs md:text-sm text-slate-600 mt-1">
+                For each situation below, select the letter of the text (A, B,
+                C, …) that matches best.
+              </p>
+            </div>
+
+            <div className="space-y-3 flex-1">
+              {renderedItems.length === 0 ? (
+                <div className="p-6 text-slate-500 text-sm bg-white rounded-lg border border-dashed border-slate-200 text-center">
+                  No situations available for this level.
+                </div>
+              ) : (
+                renderedItems.map((item, idx) => {
+                  const qid = item.qid;
+                  const storedValue = answers[qid] ?? null;
+
+                  return (
+                    <div
+                      key={qid}
+                      className="border border-slate-200 rounded-lg p-3 md:p-4 bg-white shadow-sm hover:border-slate-300 hover:shadow transition"
+                    >
+                      <p className="text-xs md:text-sm font-medium text-slate-900 mb-2">
+                        {idx + 1}. {item.prompt}
+                      </p>
+
+                      <div className="flex gap-2 flex-wrap mt-1">
+                        {rightOptions.map((letter) => {
+                          const storeTitle = true;
+                          const expected = storeTitle
+                            ? letterToTitle(letter)
+                            : letter;
+                          const isSelected = storedValue === expected;
+
+                          return (
+                            <button
+                              key={`${qid}_${letter}`}
+                              onClick={() => handleSelect(qid, letter)} // use handleSelectUnique for uniqueness if needed
+                              disabled={disabled}
+                              className={`px-3 py-1 rounded-full text-xs md:text-sm font-semibold border transition ${
+                                isSelected
+                                  ? "bg-[#004080] text-white border-[#004080]"
+                                  : "border-slate-300 bg-white text-slate-800 hover:bg-blue-50 hover:border-blue-400"
+                              } ${
+                                disabled
+                                  ? "cursor-not-allowed opacity-80"
+                                  : ""
+                              }`}
+                            >
+                              {letter}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {storedValue && (
+                        <div className="mt-2 text-[11px] md:text-xs text-slate-600">
+                          Selected text:{" "}
+                          <span className="font-medium">{storedValue}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+
+          </div>
         </div>
       </div>
     </div>

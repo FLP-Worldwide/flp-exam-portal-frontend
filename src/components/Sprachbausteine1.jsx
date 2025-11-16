@@ -6,8 +6,6 @@ import React, { useEffect, useMemo, useState } from "react";
  *
  * Stores answers under grouped shape `levels[levelKey]` as an ARRAY:
  *   exam_answers_{testId}.levels[levelKey] = [{ id: "<blankKey>", value: "<optionTitle>" }, ...]
- *
- * Internal component still uses an object map for quick lookups: { [blankKey]: title }
  */
 
 function makeOptionId(base, idx) {
@@ -15,11 +13,22 @@ function makeOptionId(base, idx) {
 }
 
 function normalizeOptionRaw(rawOpt, base, idx) {
-  if (rawOpt === null || rawOpt === undefined) return { id: makeOptionId(base, idx), title: String(rawOpt) };
-  if (typeof rawOpt === "string" || typeof rawOpt === "number" || typeof rawOpt === "boolean") {
+  if (rawOpt === null || rawOpt === undefined)
+    return { id: makeOptionId(base, idx), title: String(rawOpt) };
+  if (
+    typeof rawOpt === "string" ||
+    typeof rawOpt === "number" ||
+    typeof rawOpt === "boolean"
+  ) {
     return { id: makeOptionId(base, idx), title: String(rawOpt) };
   }
-  const title = rawOpt.title ?? rawOpt.text ?? rawOpt.label ?? rawOpt.option ?? rawOpt.value ?? JSON.stringify(rawOpt);
+  const title =
+    rawOpt.title ??
+    rawOpt.text ??
+    rawOpt.label ??
+    rawOpt.option ??
+    rawOpt.value ??
+    JSON.stringify(rawOpt);
   const id = rawOpt.id ?? rawOpt._id ?? makeOptionId(base, idx);
   return { id: String(id), title: String(title) };
 }
@@ -30,15 +39,21 @@ export default function Sprachbausteine1({
   disabled = false,
   onSubmitLevel = () => {},
   testId = null,
-  levelKey = "level4", // default now level4; change if needed
+  levelKey = "level4",
 }) {
-  // helper: pick possible id fields
   const pickId = (obj) => {
     if (!obj || typeof obj !== "object") return null;
-    return obj.questionId ?? obj.question_id ?? obj._qid ?? obj._id ?? obj.id ?? null;
+    return (
+      obj.questionId ??
+      obj.question_id ??
+      obj._qid ??
+      obj._id ??
+      obj.id ??
+      null
+    );
   };
 
-  // normalize paragraphs & blanks and derive a stable storage key for each blank
+  // normalize paragraphs & blanks
   const { paragraphs, blanks } = useMemo(() => {
     if (!Array.isArray(incoming)) return { paragraphs: [], blanks: [] };
 
@@ -59,13 +74,18 @@ export default function Sprachbausteine1({
         const rawBlank = pBlanks[i] ?? null;
         const rawBlankIdCandidate = pickId(rawBlank);
 
-        // choose storage key:
         let storageKey = null;
         if (rawBlankIdCandidate) {
           storageKey = rawBlankIdCandidate;
         } else if (parentQid) {
-          if (/_?blanks[_-]?\d*_?$/.test(parentQid) || parentQid.includes("_blanks_") || parentQid.includes("blanks")) {
-            storageKey = `${parentQid}${parentQid.endsWith("_") ? "" : "_"}${i}_`;
+          if (
+            /_?blanks[_-]?\d*_?$/.test(parentQid) ||
+            parentQid.includes("_blanks_") ||
+            parentQid.includes("blanks")
+          ) {
+            storageKey = `${parentQid}${
+              parentQid.endsWith("_") ? "" : "_"
+            }${i}_`;
           } else {
             storageKey = `${parentQid}_blanks_${i}_`;
           }
@@ -76,23 +96,28 @@ export default function Sprachbausteine1({
 
         blankIdsForPara.push(storageKey);
 
-        // derive options
         let rawOptions = [];
         if (rawBlank == null) rawOptions = [];
         else if (Array.isArray(rawBlank)) rawOptions = rawBlank;
         else if (Array.isArray(rawBlank.options)) rawOptions = rawBlank.options;
-        else if (rawBlank.answer !== undefined && rawBlank.options == null) rawOptions = [rawBlank.answer];
+        else if (rawBlank.answer !== undefined && rawBlank.options == null)
+          rawOptions = [rawBlank.answer];
         else rawOptions = [];
 
-        const opts = rawOptions.map((ro, oi) => normalizeOptionRaw(ro, storageKey, oi));
+        const opts = rawOptions.map((ro, oi) =>
+          normalizeOptionRaw(ro, storageKey, oi)
+        );
 
-        // detect correct title if supplied
         let correctTitle = null;
         if (rawBlank && typeof rawBlank === "object" && rawBlank.answer !== undefined) {
-          const foundByTitle = opts.find((o) => String(o.title) === String(rawBlank.answer));
+          const foundByTitle = opts.find(
+            (o) => String(o.title) === String(rawBlank.answer)
+          );
           if (foundByTitle) correctTitle = foundByTitle.title;
           else {
-            const foundById = opts.find((o) => String(o.id) === String(rawBlank.answer));
+            const foundById = opts.find(
+              (o) => String(o.id) === String(rawBlank.answer)
+            );
             if (foundById) correctTitle = foundById.title;
           }
         }
@@ -106,7 +131,13 @@ export default function Sprachbausteine1({
         });
       }
 
-      paras.push({ id: parentQid ?? `p${pIdx + 1}`, parts, blankIds: blankIdsForPara, raw: p, parentQid });
+      paras.push({
+        id: parentQid ?? `p${pIdx + 1}`,
+        parts,
+        blankIds: blankIdsForPara,
+        raw: p,
+        parentQid,
+      });
     });
 
     return { paragraphs: paras, blanks: blankList };
@@ -114,8 +145,7 @@ export default function Sprachbausteine1({
 
   const blankKeys = useMemo(() => blanks.map((b) => b.id), [blanks]);
 
-  // ---- INITIAL LOAD + MIGRATION ----
-  // We want internal answers as { [blankKey]: title }
+  // --- initial load + migration ---
   const getInitial = () => {
     try {
       const start = { ...(initialAnswers || {}) };
@@ -124,48 +154,76 @@ export default function Sprachbausteine1({
         const raw = localStorage.getItem(`exam_answers_${testId}`);
         const parsed = raw ? JSON.parse(raw) : {};
 
-        // 1) If grouped array exists: load that array into start map
         if (parsed && parsed.levels && Array.isArray(parsed.levels[levelKey])) {
           const arr = parsed.levels[levelKey];
           arr.forEach((it) => {
-            if (it && it.id) start[it.id] = it.value ?? it.val ?? it.answer ?? it.value === 0 ? it.value : it.value;
+            if (it && it.id)
+              start[it.id] =
+                it.value ?? it.val ?? it.answer ?? it.value === 0
+                  ? it.value
+                  : it.value;
           });
-        } else if (parsed && parsed.levels && parsed.levels[levelKey] && typeof parsed.levels[levelKey] === "object") {
-          // 2) If grouped object exists, use it (backwards compat)
+        } else if (
+          parsed &&
+          parsed.levels &&
+          parsed.levels[levelKey] &&
+          typeof parsed.levels[levelKey] === "object"
+        ) {
           const obj = parsed.levels[levelKey];
           blankKeys.forEach((k) => {
             if (obj[k] !== undefined) start[k] = obj[k];
           });
         } else {
-          // 3) fallback: if parsed top-level has flat keys (or old bN keys), load them
           blankKeys.forEach((k) => {
-            if (start[k] === undefined && parsed && parsed[k] !== undefined) start[k] = parsed[k];
+            if (start[k] === undefined && parsed && parsed[k] !== undefined)
+              start[k] = parsed[k];
           });
 
-          // 4) migration from bN generated keys -> desired blankKeys (only if present)
-          const autoKeys = Object.keys(parsed || {}).filter((k) => /^b\d+$/.test(k));
+          const autoKeys = Object.keys(parsed || {}).filter((k) =>
+            /^b\d+$/.test(k)
+          );
           if (autoKeys.length > 0) {
-            const availableAuto = autoKeys.slice().sort((a, b) => {
-              const na = parseInt(a.replace("b", ""), 10);
-              const nb = parseInt(b.replace("b", ""), 10);
-              return na - nb;
-            });
+            const availableAuto = autoKeys
+              .slice()
+              .sort((a, b) => {
+                const na = parseInt(a.replace("b", ""), 10);
+                const nb = parseInt(b.replace("b", ""), 10);
+                return na - nb;
+              });
 
             let ai = 0;
-            for (let i = 0; i < blanks.length && ai < availableAuto.length; i += 1, ai += 1) {
+            for (
+              let i = 0;
+              i < blanks.length && ai < availableAuto.length;
+              i += 1, ai += 1
+            ) {
               const desiredKey = blanks[i].id;
               const autoKey = availableAuto[ai];
-              if (start[desiredKey] === undefined && parsed && parsed[autoKey] !== undefined) {
+              if (
+                start[desiredKey] === undefined &&
+                parsed &&
+                parsed[autoKey] !== undefined
+              ) {
                 start[desiredKey] = parsed[autoKey];
-                // remove autoKey from parsed so it doesn't remain top-level (we will persist merged later)
                 delete parsed[autoKey];
               }
             }
 
-            // persist migration result back as grouped array to avoid future confusion
-            const arrAfter = Object.keys(start).map((k) => ({ id: k, value: start[k] }));
-            const mergedAfterMigration = { ...(parsed || {}), levels: { ...(parsed.levels || {}), [levelKey]: arrAfter } };
-            localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(mergedAfterMigration));
+            const arrAfter = Object.keys(start).map((k) => ({
+              id: k,
+              value: start[k],
+            }));
+            const mergedAfterMigration = {
+              ...(parsed || {}),
+              levels: {
+                ...(parsed.levels || {}),
+                [levelKey]: arrAfter,
+              },
+            };
+            localStorage.setItem(
+              `exam_answers_${testId}`,
+              JSON.stringify(mergedAfterMigration)
+            );
           }
         }
       }
@@ -178,30 +236,29 @@ export default function Sprachbausteine1({
 
   const [answers, setAnswers] = useState(() => getInitial());
 
-  // persist merged answers but write the LEVEL as an ARRAY
+  // persist as array
   useEffect(() => {
     if (!testId || typeof window === "undefined") return;
     try {
       const raw = localStorage.getItem(`exam_answers_${testId}`);
       const parsed = raw ? JSON.parse(raw) : {};
+      const existingLevels =
+        parsed && parsed.levels && typeof parsed.levels === "object"
+          ? { ...parsed.levels }
+          : {};
 
-      // preserve other parsed.levels keys
-      const existingLevels = parsed && parsed.levels && typeof parsed.levels === "object" ? { ...parsed.levels } : {};
-
-      // convert answers map to array: [{id, value}, ...]
-      const arr = Object.keys(answers || {}).map((k) => ({ id: k, value: answers[k] }));
+      const arr = Object.keys(answers || {}).map((k) => ({
+        id: k,
+        value: answers[k],
+      }));
 
       existingLevels[levelKey] = arr;
 
       const merged = { ...(parsed || {}), levels: existingLevels };
-
       localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
   }, [answers, testId, levelKey]);
 
-  // store OPTION TITLE under the API key (answers map)
   const handleSelect = (blankKey, optTitle) => {
     if (disabled) return;
     if (typeof optTitle !== "string") return;
@@ -222,8 +279,14 @@ export default function Sprachbausteine1({
     try {
       const raw = localStorage.getItem(`exam_answers_${testId}`);
       const parsed = raw ? JSON.parse(raw) : {};
-      const existingLevels = parsed && parsed.levels && typeof parsed.levels === "object" ? { ...parsed.levels } : {};
-      const arr = Object.keys(answers || {}).map((k) => ({ id: k, value: answers[k] }));
+      const existingLevels =
+        parsed && parsed.levels && typeof parsed.levels === "object"
+          ? { ...parsed.levels }
+          : {};
+      const arr = Object.keys(answers || {}).map((k) => ({
+        id: k,
+        value: answers[k],
+      }));
       existingLevels[levelKey] = arr;
       const merged = { ...(parsed || {}), levels: existingLevels };
       localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
@@ -234,56 +297,105 @@ export default function Sprachbausteine1({
   };
 
   const handleSubmit = () => {
-    const outArray = Object.keys(answers || {}).map((k) => ({ id: k, value: answers[k] }));
+    const outArray = Object.keys(answers || {}).map((k) => ({
+      id: k,
+      value: answers[k],
+    }));
 
-    // persist array
     try {
       if (testId) {
         const raw = localStorage.getItem(`exam_answers_${testId}`);
         const parsed = raw ? JSON.parse(raw) : {};
-        const existingLevels = parsed && parsed.levels && typeof parsed.levels === "object" ? { ...parsed.levels } : {};
+        const existingLevels =
+          parsed && parsed.levels && typeof parsed.levels === "object"
+            ? { ...parsed.levels }
+            : {};
         existingLevels[levelKey] = outArray;
         const merged = { ...(parsed || {}), levels: existingLevels };
         localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
       }
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
 
-    // call parent with grouped array payload, consistent with storage shape
     onSubmitLevel({ [levelKey]: outArray });
   };
 
   if (paragraphs.length === 0 || blanks.length === 0) {
     return (
-      <div className="p-6 bg-white rounded shadow-sm text-center">
-        <h3 className="text-lg font-semibold text-gray-800">No content available for this level</h3>
-        <p className="text-sm text-gray-500 mt-2">This level has no paragraph or blanks.</p>
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center">
+        <h3 className="text-base md:text-lg font-semibold text-slate-900">
+          No content available for this level
+        </h3>
+        <p className="text-xs md:text-sm text-slate-500 mt-2">
+          This level has no paragraph or blanks configured yet.
+        </p>
       </div>
     );
   }
 
+  // ---------- UI ----------
   return (
-    <div className="bg-gray-50 min-h-screen p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded shadow p-4 mb-4">
-          <h2 className="text-xl font-semibold text-[#004080]">Sprachbausteine – Teil 1 (Level 4)</h2>
-          <p className="text-sm text-gray-600 mt-1">Fill the gaps. Answers are saved under <code>levels.{levelKey}</code> as an array of objects (<code>{'{id,value}'}</code>).</p>
+    <div className="w-full">
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 md:p-6">
+        {/* Header */}
+        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="max-w-2xl">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Level 4 – Fill in the blanks (Sprachbausteine)
+            </h2>
+            <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
+              Read the text and choose the best option for each gap. Your
+              answers are saved locally for this test.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2 md:gap-3 md:justify-end">
+            {!disabled && (
+              <button
+                onClick={handleSaveProgress}
+                className="px-4 py-1.5 rounded-full text-xs md:text-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              >
+                Save Progress
+              </button>
+            )}
+            <button
+              onClick={handleSubmit}
+              disabled={disabled}
+              className={`px-5 py-1.5 rounded-full text-xs md:text-sm font-medium ${
+                disabled
+                  ? "bg-slate-300 text-slate-600 cursor-not-allowed"
+                  : "bg-emerald-600 text-white hover:bg-emerald-700"
+              }`}
+            >
+              Submit Level
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* LEFT: paragraphs */}
-          <div className="bg-white rounded shadow p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+          {/* LEFT: paragraphs with blank markers */}
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 md:p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="inline-flex items-center justify-center rounded-full bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5">
+                Reading Text
+              </span>
+              <span className="text-[11px] text-slate-500">
+                Gaps are marked as [1], [2], [3], …
+              </span>
+            </div>
+
             {paragraphs.map((p) => (
-              <div key={p.id} className="prose max-w-none text-gray-800 mb-4">
+              <div
+                key={p.id}
+                className="text-xs md:text-sm text-slate-800 leading-relaxed whitespace-pre-wrap mb-3"
+              >
                 {p.parts.map((part, idx) => {
                   const blankKey = p.blankIds[idx];
                   return (
                     <span key={idx}>
                       <span>{part}</span>
                       {blankKey ? (
-                        <span className="inline-block ml-2 mr-2 px-2 py-1 rounded text-sm font-semibold text-white bg-[#004080]">
-                          [{String(idx + 1)}]
+                        <span className="inline-flex items-center justify-center mx-1 px-1.5 py-0.5 rounded-full text-[11px] md:text-xs font-semibold text-blue-700 bg-blue-50">
+                          [{idx + 1}]
                         </span>
                       ) : null}
                     </span>
@@ -294,71 +406,86 @@ export default function Sprachbausteine1({
           </div>
 
           {/* RIGHT: options per blank */}
-          <div className="bg-white rounded shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">Choose the correct option for each gap</h3>
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 md:p-5">
+            <h3 className="text-sm md:text-base font-semibold text-slate-900 mb-3">
+              Choose the correct option for each gap
+            </h3>
 
             <div className="space-y-4">
               {blanks.map((b, idx) => {
                 const saved = answers[b.id] ?? null;
                 return (
-                  <div key={b.id} className="border border-gray-100 rounded p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium text-gray-800">
-                        {idx + 1}. Gap <span className="text-[#004080]">[{idx + 1}]</span>
+                  <div
+                    key={b.id}
+                    className="border border-slate-100 rounded-lg p-3 md:p-4"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="text-xs md:text-sm font-medium text-slate-900">
+                        Gap <span className="text-blue-700">[{idx + 1}]</span>
                       </div>
                       {saved && (
-                        <button onClick={() => handleClear(b.id)} className="text-xs px-2 py-1 rounded bg-red-50 text-red-600 border border-red-100">
+                        <button
+                          type="button"
+                          onClick={() => handleClear(b.id)}
+                          className="text-[11px] px-2 py-1 rounded-full bg-red-50 text-red-600 border border-red-100 hover:bg-red-100"
+                        >
                           Clear
                         </button>
                       )}
                     </div>
 
-                    <div className="mt-2 flex flex-col gap-2">
+                    <div className="mt-2 flex flex-col gap-1.5">
                       {Array.isArray(b.options) && b.options.length > 0 ? (
                         b.options.map((opt) => {
                           const isSelected = saved === opt.title;
                           return (
-                            <label key={opt.id} className={`flex items-center gap-3 p-2 rounded cursor-pointer transition ${isSelected ? "bg-blue-50 border border-blue-100" : "hover:bg-gray-50"}`}>
+                            <label
+                              key={opt.id}
+                              className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 cursor-pointer border transition ${
+                                isSelected
+                                  ? "bg-blue-50 border-blue-200"
+                                  : "border-slate-200 hover:bg-slate-50"
+                              } ${
+                                disabled
+                                  ? "opacity-80 cursor-not-allowed"
+                                  : ""
+                              }`}
+                            >
                               <input
                                 type="radio"
                                 name={b.id}
+                                className="h-4 w-4 text-blue-600"
                                 checked={isSelected}
-                                onChange={() => handleSelect(b.id, opt.title)}
+                                onChange={() =>
+                                  handleSelect(b.id, opt.title)
+                                }
                                 disabled={disabled}
-                                className="form-radio h-4 w-4 text-[#004080]"
                               />
-                              <span className="text-sm text-gray-700">{opt.title}</span>
+                              <span className="text-xs md:text-sm text-slate-800">
+                                {opt.title}
+                              </span>
                             </label>
                           );
                         })
                       ) : (
-                        <div className="text-sm text-gray-500">No options provided for this gap.</div>
+                        <div className="text-xs text-slate-500">
+                          No options provided for this gap.
+                        </div>
                       )}
                     </div>
 
-                    <div className="mt-2 text-xs text-gray-400">
-                      Saved key: <code>{b.id}</code>
+                    <div className="mt-2 text-[10px] text-slate-400">
+                      Storage key:&nbsp;
+                      <code className="bg-slate-50 px-1 py-0.5 rounded">
+                        {b.id}
+                      </code>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            <div className="flex items-center justify-between mt-6">
-              <div>
-                {!disabled && (
-                  <button onClick={handleSaveProgress} className="px-4 py-2 rounded bg-gray-100 text-gray-800 mr-3">
-                    Save Progress
-                  </button>
-                )}
-              </div>
-
-              <div>
-                <button onClick={handleSubmit} disabled={disabled} className={`px-4 py-2 rounded ${disabled ? "bg-gray-300 text-gray-600" : "bg-green-600 text-white"}`}>
-                  Submit Level
-                </button>
-              </div>
-            </div>
+            
           </div>
         </div>
       </div>

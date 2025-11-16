@@ -3,154 +3,146 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { DndContext } from "@dnd-kit/core";
 
-/**
- * LevelOne (drag-and-drop + click)
- *
- * Props:
- * - questions: array of question objects (from parent normalized `questionsByTab.lesen1`)
- *   expected each question to contain _id, paragraph/text, options (optional)
- * - initialAnswers: { [questionId]: selectedTitle }  // optional
- * - moduleOptions: optional array of option strings (module-level pool)
- * - disabled: boolean
- * - onSubmitLevel: function(answersForLevel) => void
- * - testId: optional string (for localStorage key exam_answers_{testId})
- * - levelKey: string to group answers in localStorage under `levels[levelKey]` (default "level1")
- */
 export default function LevelOne({
   questions = [],
   initialAnswers = {},
-  moduleOptions = [], // optional pool from parent
+  moduleOptions = [],
   disabled = false,
   onSubmitLevel = () => {},
   testId = null,
   levelKey = "level1",
 }) {
-  // Normalize incoming questions: ensure _id, text, options (id + title)
+  // Normalize incoming questions
   const normalizedQuestions = useMemo(() => {
     return (questions || []).map((q, idx) => {
       const id = q._id ?? q.id ?? `q_${idx}`;
-      const text = q.paragraph ?? q.text ?? q.prompt ?? q.question ?? `Passage ${idx + 1}`;
-      // if q.options present as array of strings -> convert to {id,title}
+      const text =
+        q.paragraph ??
+        q.text ??
+        q.prompt ??
+        q.question ??
+        `Passage ${idx + 1}`;
       const opts =
         Array.isArray(q.options) && q.options.length
           ? q.options.map((o, i) =>
               typeof o === "string"
                 ? { id: `${id}_opt_${i}`, title: o }
-                : { id: o.id ?? o._id ?? `${id}_opt_${i}`, title: o.title ?? o.label ?? String(o) }
+                : {
+                    id: o.id ?? o._id ?? `${id}_opt_${i}`,
+                    title: o.title ?? o.label ?? String(o),
+                  }
             )
           : null;
       return { _id: id, text, options: opts, raw: q };
     });
   }, [questions]);
 
-  // Build master option pool (prefer moduleOptions, else union of per-question options)
+  // Build master option pool
   const masterOptions = useMemo(() => {
     const map = new Map();
 
-    // If moduleOptions (strings) are provided, use them (and create stable ids)
     if (Array.isArray(moduleOptions) && moduleOptions.length > 0) {
       moduleOptions.forEach((m, i) => {
         const title = String(m).trim();
-        if (!map.has(title) && title) map.set(title, { id: `pool_${i}`, title });
+        if (!map.has(title) && title) {
+          map.set(title, { id: `pool_${i}`, title });
+        }
       });
       return Array.from(map.values());
     }
 
-    // Fallback: union of per-question options
     normalizedQuestions.forEach((q) => {
       (q.options || []).forEach((o) => {
         const key = String(o.title ?? o.id ?? o).trim();
-        if (!map.has(key) && key) map.set(key, { id: o.id ?? `opt_${map.size}`, title: key });
+        if (!map.has(key) && key) {
+          map.set(key, { id: o.id ?? `opt_${map.size}`, title: key });
+        }
       });
     });
 
     return Array.from(map.values());
   }, [normalizedQuestions, moduleOptions]);
 
-  // Answers state: map questionId -> selectedOptionTitle (human-friendly)
+  // Answers state
   const [answers, setAnswers] = useState(() => {
     try {
-      // prefer explicit initialAnswers prop if provided
       if (initialAnswers && Object.keys(initialAnswers).length > 0) {
         return { ...initialAnswers };
       }
-      // else read from localStorage if testId provided
       if (testId && typeof window !== "undefined") {
         const raw = localStorage.getItem(`exam_answers_${testId}`);
         if (raw) {
           const parsed = JSON.parse(raw);
 
-          // 1) If new grouped shape exists, pick from parsed.levels[levelKey]
           if (parsed && parsed.levels && parsed.levels[levelKey]) {
             const lvl = parsed.levels[levelKey];
             const relevant = {};
             (questions || []).forEach((q) => {
               const qid = q._id ?? q.id;
-              if (qid && lvl && lvl[qid] !== undefined) relevant[qid] = lvl[qid];
+              if (qid && lvl && lvl[qid] !== undefined) {
+                relevant[qid] = lvl[qid];
+              }
             });
             return relevant;
           }
 
-          // 2) Backwards-compatibility: fallback to flat shape where answers are top-level keys
           const relevantFallback = {};
           (questions || []).forEach((q) => {
             const qid = q._id ?? q.id;
-            if (qid && parsed && parsed[qid] !== undefined) relevantFallback[qid] = parsed[qid];
+            if (qid && parsed && parsed[qid] !== undefined) {
+              relevantFallback[qid] = parsed[qid];
+            }
           });
           if (Object.keys(relevantFallback).length > 0) return relevantFallback;
         }
       }
-    } catch (e) {
-      // ignore errors
-    }
+    } catch (e) {}
     return {};
   });
 
-  // active focused question id (for click-to-assign)
   const [activeQ, setActiveQ] = useState(null);
+  const [showSelectHint, setShowSelectHint] = useState(false);
 
-  // Helper: map optionId -> title (masterOptions)
+  // optionId -> title
   const optionIdToTitle = useMemo(() => {
     const m = new Map();
     masterOptions.forEach((o) => m.set(String(o.id), o.title));
     return m;
   }, [masterOptions]);
 
-  // Which option titles are currently used (to disable duplicates)
-  const usedTitles = useMemo(() => new Set(Object.values(answers || {}).filter(Boolean)), [answers]);
+  const usedTitles = useMemo(
+    () => new Set(Object.values(answers || {}).filter(Boolean)),
+    [answers]
+  );
 
-  // Persist answers merged into localStorage exam_answers_{testId} whenever answers changes
+  // Persist to localStorage
   useEffect(() => {
     if (!testId) return;
     try {
       const raw = localStorage.getItem(`exam_answers_${testId}`);
       const parsed = raw ? JSON.parse(raw) : {};
-      // Ensure levels object exists
-      const levels = parsed && parsed.levels && typeof parsed.levels === "object" ? { ...parsed.levels } : {};
-      // Merge this level's answers into stored levels[levelKey]
+      const levels =
+        parsed && parsed.levels && typeof parsed.levels === "object"
+          ? { ...parsed.levels }
+          : {};
       levels[levelKey] = { ...(levels[levelKey] || {}), ...(answers || {}) };
       const merged = { ...(parsed || {}), levels };
       localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
   }, [answers, testId, levelKey]);
 
-  // DnD: handle drag end where active.id is optionId and over.id is questionId
+  // DnD drag end
   const handleDragEnd = (event) => {
     if (disabled) return;
     const { active, over } = event;
     if (!active || !over) return;
-    const optId = active.id; // e.g. pool_0 or q_0_opt_1
+    const optId = active.id;
     const targetQuestionId = over.id;
-    // find title from optId
     const title = optionIdToTitle.get(String(optId));
     if (!title) return;
 
-    // assign title to targetQuestionId ensuring uniqueness (remove title from other questions)
     setAnswers((prev) => {
       const next = { ...(prev || {}) };
-      // remove this title from previous owners
       Object.keys(next).forEach((qid) => {
         if (next[qid] === title) delete next[qid];
       });
@@ -159,60 +151,34 @@ export default function LevelOne({
     });
   };
 
-  // Click option (from pool) => if activeQ exists assign to it; else assign to first empty question or first question
+  // Click option from pool => must have a selected passage
   const handleOptionClick = (optId) => {
     if (disabled) return;
     const title = optionIdToTitle.get(String(optId));
     if (!title) return;
 
-    if (activeQ) {
-      // assign to focused question
-      setAnswers((prev) => {
-        const next = { ...(prev || {}) };
-        // remove title from any other question
-        Object.keys(next).forEach((qid) => {
-          if (next[qid] === title) delete next[qid];
-        });
-        next[activeQ] = title;
-        return next;
-      });
+    if (!activeQ) {
+      // user must choose paragraph first
+      setShowSelectHint(true);
       return;
     }
 
-    // no focus: assign to first unanswered question
-    const firstEmpty = normalizedQuestions.find((q) => !answers[q._id]);
-    if (firstEmpty) {
-      setAnswers((prev) => {
-        const next = { ...(prev || {}) };
-        Object.keys(next).forEach((qid) => {
-          if (next[qid] === title) delete next[qid];
-        });
-        next[firstEmpty._id] = title;
-        return next;
+    setAnswers((prev) => {
+      const next = { ...(prev || {}) };
+      Object.keys(next).forEach((qid) => {
+        if (next[qid] === title) delete next[qid];
       });
-      return;
-    }
-
-    // otherwise assign to the first question
-    if (normalizedQuestions[0]) {
-      setAnswers((prev) => {
-        const next = { ...(prev || {}) };
-        Object.keys(next).forEach((qid) => {
-          if (next[qid] === title) delete next[qid];
-        });
-        next[normalizedQuestions[0]._id] = title;
-        return next;
-      });
-    }
+      next[activeQ] = title;
+      return next;
+    });
   };
 
-  // Click question to focus for assign
   const handleQuestionClick = (qid) => {
     if (disabled) return;
     setActiveQ((prev) => (prev === qid ? null : qid));
+    setShowSelectHint(false);
   };
 
-  // Clear answer for a question
   const clearAnswer = (qid) => {
     if (disabled) return;
     setAnswers((prev) => {
@@ -222,7 +188,6 @@ export default function LevelOne({
     });
   };
 
-  // Save progress locally (merge) - updated to persist under levels[levelKey]
   const handleSaveProgress = () => {
     if (!testId) {
       alert("No testId provided for saving.");
@@ -231,7 +196,10 @@ export default function LevelOne({
     try {
       const raw = localStorage.getItem(`exam_answers_${testId}`);
       const parsed = raw ? JSON.parse(raw) : {};
-      const levels = parsed && parsed.levels && typeof parsed.levels === "object" ? { ...parsed.levels } : {};
+      const levels =
+        parsed && parsed.levels && typeof parsed.levels === "object"
+          ? { ...parsed.levels }
+          : {};
       levels[levelKey] = { ...(levels[levelKey] || {}), ...(answers || {}) };
       const merged = { ...(parsed || {}), levels };
       localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
@@ -242,19 +210,22 @@ export default function LevelOne({
     }
   };
 
-  // Submit level: call parent with questionId -> selectedTitle mapping for currently displayed questions
   const handleSubmitLevel = () => {
     const payload = {};
     normalizedQuestions.forEach((q) => {
-      if (answers[q._id] !== undefined && answers[q._id] !== null) payload[q._id] = answers[q._id];
+      if (answers[q._id] !== undefined && answers[q._id] !== null) {
+        payload[q._id] = answers[q._id];
+      }
     });
 
-    // Persist the payload in localStorage under levels[levelKey] as well (merge safely)
     if (testId) {
       try {
         const raw = localStorage.getItem(`exam_answers_${testId}`);
         const parsed = raw ? JSON.parse(raw) : {};
-        const levels = parsed && parsed.levels && typeof parsed.levels === "object" ? { ...parsed.levels } : {};
+        const levels =
+          parsed && parsed.levels && typeof parsed.levels === "object"
+            ? { ...parsed.levels }
+            : {};
         levels[levelKey] = { ...(levels[levelKey] || {}), ...payload };
         const merged = { ...(parsed || {}), levels };
         localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
@@ -263,146 +234,221 @@ export default function LevelOne({
       }
     }
 
-    // call parent with a neat object under levelKey
     onSubmitLevel({ [levelKey]: payload });
   };
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-2 gap-6 p-6 bg-gray-100 min-h-[60vh]">
-        {/* LEFT: Questions */}
-        <div className="space-y-6">
-          {normalizedQuestions.length === 0 ? (
-            <div className="p-6 text-gray-500">No questions for this level.</div>
-          ) : (
-            normalizedQuestions.map((q, idx) => {
-              const selectedTitle = answers[q._id] ?? null;
-              return (
-                <div
-                  key={q._id}
-                  id={q._id /* droppable id */}
-                  onClick={() => handleQuestionClick(q._id)}
-                  className={`p-4 border rounded cursor-pointer transition ${activeQ === q._id ? "ring-2 ring-blue-400 bg-white" : "bg-white"}`}
+      <div className="w-full">
+        {/* container card-ish */}
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 md:p-6">
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            {/* LEFT: title + description */}
+            <div className="max-w-2xl">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Level 1 – Match passages with correct answers
+              </h2>
+              <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
+                Step 1: Click a passage to select it. Step 2: Click an answer from the
+                pool to assign it. Each answer can be used only once.
+              </p>
+            </div>
+
+            {/* RIGHT: actions */}
+            <div className="flex flex-wrap gap-2 md:gap-3 md:justify-end">
+              {!disabled && (
+                <button
+                  onClick={handleSaveProgress}
+                  className="px-4 py-1.5 rounded-full text-xs md:text-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                 >
-                  <h4 className="font-semibold mb-3">Passage {idx + 1}</h4>
-                  <div className="text-gray-800 whitespace-pre-wrap mb-3" style={{ lineHeight: 1.6 }}>
-                    {q.text}
-                  </div>
-
-                  {selectedTitle ? (
-                    <div className="flex items-center justify-between p-2 rounded bg-green-50 border">
-                      <div className="text-sm text-green-800">{selectedTitle}</div>
-                      {!disabled && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            clearAnswer(q._id);
-                          }}
-                          className="ml-3 px-2 py-1 bg-red-100 text-red-700 rounded"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-gray-400"> {activeQ === q._id ? "Click an option or drag here" : "Drop / Click answer here"}</div>
-                  )}
-
-                  {/* optional per-question inline options (if provided) */}
-                  {Array.isArray(q.options) && q.options.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {q.options.map((opt) => {
-                        const isSelected = answers[q._id] === opt.title;
-                        const disabledOpt = disabled || (usedTitles.has(opt.title) && !isSelected);
-                        return (
-                          <button
-                            key={opt.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (disabledOpt) return;
-                              // assign this option title
-                              handleOptionClick(opt.id);
-                            }}
-                            className={`px-3 py-1 rounded text-sm ${isSelected ? "font-semibold" : ""}`}
-                            style={{
-                              border: "1px solid #e5e7eb",
-                              background: isSelected ? "#e6f0ff" : "#fff",
-                              opacity: disabledOpt ? 0.6 : 1,
-                            }}
-                            disabled={disabledOpt}
-                          >
-                            {opt.title}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {/* RIGHT: Options Pool */}
-        <div>
-          <h3 className="font-bold mb-2">Answer Pool</h3>
-          <div className="text-sm text-gray-600 mb-3">
-            {masterOptions.length === 0 ? "No option pool provided by API." : "Click or drag an option to assign it to a passage."}
+                  Save Progress
+                </button>
+              )}
+              <button
+                onClick={handleSubmitLevel}
+                disabled={disabled}
+                className={`px-5 py-1.5 rounded-full text-xs md:text-sm font-medium ${
+                  disabled
+                    ? "bg-slate-300 text-slate-600 cursor-not-allowed"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+                }`}
+              >
+                Submit Level
+              </button>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            {masterOptions.map((opt) => {
-              const used = usedTitles.has(opt.title);
-              const disabledItem = disabled || used;
-              // The draggable id must be unique and stable; we use opt.id
-              return (
-                <div
-                  key={opt.id}
-                  draggable={!disabledItem}
-                  onDragStart={(e) => {
-                    // In pure HTML drag (fallback) set id in dataTransfer so DnDContext might not need this, but @dnd-kit handles native drag
-                    try {
-                      e.dataTransfer.setData("text/plain", String(opt.id));
-                    } catch (err) {}
-                  }}
-                  onClick={() => {
-                    if (disabledItem) return;
-                    handleOptionClick(opt.id);
-                  }}
-                  className={`p-3 border rounded cursor-pointer select-none ${disabledItem ? "bg-gray-100 text-gray-500" : "bg-white hover:bg-blue-50"}`}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>{opt.title}</div>
-                    {used && <div className="text-xs text-green-700">{/* show small used mark */}✓</div>}
-                  </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+            {/* LEFT: Questions */}
+            <div className="space-y-4">
+              {normalizedQuestions.length === 0 ? (
+                <div className="p-6 text-slate-500 text-sm bg-white rounded-lg border border-dashed border-slate-200 text-center">
+                  No questions for this level.
                 </div>
-              );
-            })}
+              ) : (
+                normalizedQuestions.map((q, idx) => {
+                  const selectedTitle = answers[q._id] ?? null;
+                  const isActive = activeQ === q._id;
+
+                  return (
+                    <div
+                      key={q._id}
+                      id={q._id}
+                      onClick={() => handleQuestionClick(q._id)}
+                      className={`rounded-lg border transition shadow-sm cursor-pointer ${
+                        isActive
+                          ? "border-blue-500 ring-2 ring-blue-200 bg-white"
+                          : "border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center justify-center rounded-full bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5">
+                            Passage {idx + 1}
+                          </span>
+                          {isActive && (
+                            <span className="text-[10px] text-blue-600 font-medium uppercase tracking-wide">
+                              Selected
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="px-4 pb-3 text-sm text-slate-800 whitespace-pre-wrap leading-relaxed border-t border-slate-100">
+                        {q.text}
+                      </div>
+
+                      <div className="px-4 pb-4 border-t border-slate-100">
+                        {selectedTitle ? (
+                          <div className="mt-3 flex items-center justify-between px-3 py-2 rounded-md bg-emerald-50 border border-emerald-200">
+                            <div className="text-xs md:text-sm text-emerald-800">
+                              {selectedTitle}
+                            </div>
+                            {!disabled && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  clearAnswer(q._id);
+                                }}
+                                className="ml-3 px-2 py-1 text-xs bg-red-50 border border-red-200 text-red-700 rounded hover:bg-red-100"
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="mt-3 text-xs text-slate-400">
+                            {isActive
+                              ? "Now choose an answer from the pool on the right."
+                              : "Click to select this passage, then choose an answer."}
+                          </div>
+                        )}
+
+                        {Array.isArray(q.options) && q.options.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {q.options.map((opt) => {
+                              const isSelected = answers[q._id] === opt.title;
+                              const disabledOpt =
+                                disabled ||
+                                (usedTitles.has(opt.title) && !isSelected);
+                              return (
+                                <button
+                                  key={opt.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (disabledOpt) return;
+                                    handleOptionClick(opt.id);
+                                  }}
+                                  className={`px-2.5 py-1 rounded-full text-xs border ${
+                                    isSelected
+                                      ? "border-blue-500 bg-blue-50 font-semibold text-blue-700"
+                                      : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50"
+                                  } ${disabledOpt ? "opacity-60" : ""}`}
+                                  disabled={disabledOpt}
+                                >
+                                  {opt.title}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* RIGHT: Options Pool */}
+            <div className="h-full flex flex-col">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="font-semibold text-slate-900 text-sm md:text-base">
+                  Answer Pool
+                </h3>
+                {masterOptions.length > 0 && (
+                  <span className="text-[11px] text-slate-500">
+                    {masterOptions.length} options
+                  </span>
+                )}
+              </div>
+
+              <p className="text-xs text-slate-500 mb-2">
+                First, click a passage on the left. Then click an answer here to
+                assign it. Each answer can only be used once.
+              </p>
+
+              {showSelectHint && !disabled && (
+                <div className="mb-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-1.5">
+                  Please <strong>select a passage</strong> on the left before
+                  choosing an answer.
+                </div>
+              )}
+
+              <div className="flex-1 space-y-2 mt-1">
+                {masterOptions.length === 0 ? (
+                  <div className="p-4 text-xs text-slate-500 bg-white rounded-lg border border-dashed border-slate-200 text-center">
+                    No option pool provided by API.
+                  </div>
+                ) : (
+                  masterOptions.map((opt) => {
+                    const used = usedTitles.has(opt.title);
+                    const disabledItem = disabled || used;
+                    return (
+                      <div
+                        key={opt.id}
+                        draggable={!disabledItem}
+                        onDragStart={(e) => {
+                          try {
+                            e.dataTransfer.setData(
+                              "text/plain",
+                              String(opt.id)
+                            );
+                          } catch (err) {}
+                        }}
+                        onClick={() => {
+                          if (disabledItem) return;
+                          handleOptionClick(opt.id);
+                        }}
+                        className={`p-3 rounded-md border text-sm flex justify-between items-center cursor-pointer select-none transition ${
+                          disabledItem
+                            ? "bg-slate-50 text-slate-400 border-slate-200"
+                            : "bg-white text-slate-800 border-slate-200 hover:bg-blue-50 hover:border-blue-300"
+                        }`}
+                      >
+                        <span>{opt.title}</span>
+                        {used && (
+                          <span className="text-[11px] text-emerald-700 font-medium">
+                            used
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="flex justify-between items-center mt-4 px-6">
-        <div>
-          {!disabled && (
-            <button
-              onClick={handleSaveProgress}
-              className="px-4 py-2 rounded bg-gray-100 text-gray-800 mr-3"
-            >
-              Save Progress
-            </button>
-          )}
-        </div>
-
-        <div>
-          <button
-            onClick={handleSubmitLevel}
-            disabled={disabled}
-            className={`px-4 py-2 rounded ${disabled ? "bg-gray-300 text-gray-600" : "bg-green-600 text-white"}`}
-          >
-            Submit Level
-          </button>
         </div>
       </div>
     </DndContext>

@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import api from '../../../../../../utils/axios'
-import TestSubmitBtn from "../../../../../../components/TestSubmitBtn";
 
+import { useRouter } from "next/navigation";
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`)
 
 export default function WritingTest() {
   const { testId } = useParams()
+ const router = useRouter();
 
   // UI state
   const [activeTaskId, setActiveTaskId] = useState(null) // 'A' or 'B'
@@ -169,7 +170,7 @@ export default function WritingTest() {
         setTotalPoints(null)
         setLevelLabel('')
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) setLoading(false) 
       }
     }
 
@@ -295,7 +296,7 @@ export default function WritingTest() {
         const merged = { ...(parsed || {}), writing: writingObj }
         localStorage.setItem(LS.examAnswers, JSON.stringify(merged))
       }
-
+      router.push(`/dashboard/exam/${testId}/start/audio`);
       alert(
         'Selected task saved locally. Use Final Submit to send everything to the server.'
       )
@@ -307,47 +308,78 @@ export default function WritingTest() {
     }
   }
 
-  if (loading) return <div className="p-6 text-center">Loading writing tasks…</div>
-
-  if (!serverTasks.A && !serverTasks.B) {
-    return <div className="p-6 text-center">No writing tasks found for this test.</div>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="bg-white rounded-2xl shadow-md px-6 py-4 flex flex-col items-center gap-2">
+          <div className="w-8 h-8 border-2 border-slate-300 border-t-[#0d2b57] rounded-full animate-spin" />
+          <p className="text-sm text-slate-600">Loading writing tasks…</p>
+        </div>
+      </div>
+    )
   }
 
-  const level = levelLabel || 'Deutsch - B2'
+  if (!serverTasks.A && !serverTasks.B) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="bg-white rounded-2xl shadow-md px-6 py-5 text-center max-w-md">
+          <h2 className="text-lg font-semibold text-slate-900 mb-1">
+            No writing tasks found
+          </h2>
+          <p className="text-sm text-slate-500">
+            This exam does not contain any writing tasks configured for the writing module.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const level = levelLabel || 'Deutsch · B2'
   const tp = totalPoints ?? 45
 
-  // ---------- reusable canvas element (used either left or right) ----------
+  // ---------- reusable canvas element (editor) ----------
   const canvasElement =
     activeTask && activeTaskId ? (
-      <div className="bg-white rounded-2xl shadow-md p-4 flex flex-col min-h-[420px]">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold">{activeTask.title}</h3>
-          <div className="text-sm text-gray-600">
-            Words: <span className="font-semibold">{wordCount}</span>
+      <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-4 sm:p-5 flex flex-col min-h-[420px]">
+        <div className="flex items-center justify-between mb-2 gap-2">
+          <h3 className="font-semibold text-slate-900">
+            {activeTask.title || `Task ${activeTaskId}`}
+          </h3>
+          <div className="text-xs sm:text-sm text-slate-600">
+            Words:{' '}
+            <span className="font-semibold text-slate-900">{wordCount}</span>
           </div>
         </div>
-        <p className="text-xs text-gray-500 mb-3">{activeTask.instruction}</p>
+        {activeTask.instruction && (
+          <p className="text-xs sm:text-sm text-slate-500 mb-3">
+            {activeTask.instruction}
+          </p>
+        )}
         <textarea
           value={texts[activeTaskId]}
           onChange={handleTextChange}
           onFocus={ensureTimer}
-          className="flex-1 w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-200"
+          className="flex-1 w-full border border-slate-200 rounded-xl p-3 sm:p-4 text-sm outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400 resize-none"
           placeholder="Write your text here…"
           spellCheck={true}
         />
-        <div className="flex justify-between items-center mt-3 text-xs text-gray-500">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-3 text-[11px] sm:text-xs text-slate-500 gap-1">
           <span>
             Started:{' '}
             {startedAt ? new Date(startedAt).toLocaleString() : '—'}
           </span>
-          <span>Autosaves to your browser</span>
+          <span>Draft is saved in your browser automatically.</span>
         </div>
       </div>
     ) : (
-      <div className="bg-white rounded-2xl shadow-md p-4 min-h-[420px] flex items-center justify-center text-gray-500">
-        <div className="text-center">
-          <p className="font-medium">Select Task A or Task B to start writing.</p>
-          <p className="text-sm mt-1">Your editor will appear on the opposite side.</p>
+      <div className="bg-white rounded-2xl shadow-md border border-dashed border-slate-200 min-h-[420px] flex items-center justify-center text-slate-500">
+        <div className="text-center px-4">
+          <p className="font-medium text-slate-700">
+            Select Task A or Task B to start writing.
+          </p>
+          <p className="text-xs sm:text-sm mt-1">
+            Your writing editor will appear here once you choose a task.
+          </p>
         </div>
       </div>
     )
@@ -360,25 +392,27 @@ export default function WritingTest() {
     return (
       <div
         key={key}
-        className={`bg-white rounded-2xl shadow-md p-4 flex flex-col cursor-pointer transition min-h-[220px] ${
+        className={`bg-white rounded-2xl shadow-md p-4 sm:p-5 flex flex-col cursor-pointer transition min-h-[220px] border ${
           isActive
-            ? 'border border-blue-500 ring-2 ring-blue-100'
-            : 'border border-gray-200 hover:border-gray-300'
+            ? 'border-sky-500 ring-2 ring-sky-100'
+            : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
         }`}
         onClick={() => handleSelectTask(key)}
       >
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold">{task.title || `Task ${key}`}</h3>
-          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-md">
+        <div className="flex items-center justify-between mb-2 gap-2">
+          <h3 className="font-semibold text-slate-900">
+            {task.title || `Task ${key}`}
+          </h3>
+          <span className="text-[11px] sm:text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-md">
             {task.subtitle || `Aufgabe ${key}`}
           </span>
         </div>
-        <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed max-h-64 overflow-auto">
+        <pre className="whitespace-pre-wrap text-sm text-slate-700 leading-relaxed max-h-64 overflow-auto">
           {task.body}
         </pre>
         {!isActive && (
-          <p className="text-xs text-gray-400 mt-1">
-            Click to choose Aufgabe {key} and open the editor on the other side.
+          <p className="text-[11px] sm:text-xs text-slate-400 mt-2">
+            Click to choose Aufgabe {key} and open the editor on the opposite side.
           </p>
         )}
       </div>
@@ -386,68 +420,75 @@ export default function WritingTest() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-      {/* Top bar */}
-      <div className="mx-auto max-w-6xl bg-[#0d2b57] text-white rounded-2xl shadow-md">
-        <div className="flex items-center justify-between px-4 py-3 flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            <div className="bg-white/10 px-3 py-1 rounded-lg text-sm">
-              <span className="font-semibold">Schreiben</span> · Teil 1
+    <div className="min-h-screen bg-slate-50 px-3 sm:px-4 py-4 sm:py-6">
+      <div className="mx-auto max-w-6xl space-y-4 sm:space-y-5">
+        {/* Top bar */}
+        <div className="bg-gradient-to-r from-[#0d2b57] to-[#102f66] text-white rounded-2xl shadow-md border border-slate-800/40">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between px-4 sm:px-6 py-3.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="bg-white/10 px-3 py-1.5 rounded-full text-xs sm:text-sm">
+                <span className="font-semibold">Schreiben</span>
+                <span className="opacity-80"> · Teil 1</span>
+              </div>
+              <div className="bg-white/10 px-3 py-1.5 rounded-full text-xs sm:text-sm">
+                {tp} Punkte
+              </div>
+              <div className="bg-white/5 px-3 py-1.5 rounded-full text-[11px] sm:text-xs">
+                {level}
+              </div>
             </div>
-            <div className="bg-white/10 px-3 py-1 rounded-lg text-sm">
-              {tp} Punkte
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-sm opacity-90">{level}</div>
-            <div className="text-sm">
-              Remaining time:{' '}
-              <span
-                className={`font-semibold ${
-                  secondsLeft <= 60 ? 'text-yellow-300' : 'text-white'
-                }`}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="text-xs sm:text-sm">
+                Remaining time:{' '}
+                <span
+                  className={`font-semibold tracking-tight ${
+                    secondsLeft <= 60 ? 'text-yellow-300' : 'text-emerald-200'
+                  }`}
+                >
+                  {timeStr}
+                </span>
+              </div>
+
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="text-xs sm:text-sm bg-sky-400 hover:bg-sky-500 disabled:bg-sky-300 text-white px-3 sm:px-4 py-1.5 rounded-lg shadow-sm transition"
               >
-                {timeStr}
-              </span>
+                {saving ? 'Saving…' : 'Save Draft'}
+              </button>
+
+           
             </div>
-
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-[#0ea5e9] hover:bg-[#0891d1] disabled:bg-sky-400 text-white px-4 py-2 rounded-lg"
-            >
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-
-            <TestSubmitBtn />
           </div>
         </div>
-      </div>
 
-      {/* Notice */}
-      <div className="mx-auto max-w-6xl bg-yellow-50 border border-yellow-200 rounded-xl p-4 mt-4">
-        <p className="text-yellow-900 text-sm">
-          Task A is shown on the left and Task B on the right. <br />
-          If you select <strong>Task A</strong>, the editor opens on the right and Task B
-          is hidden. If you select <strong>Task B</strong>, the editor opens on the
-          left and Task A is hidden.
-        </p>
-      </div>
-
-      {/* Main area: left = A or canvas (when B active), right = B or canvas (when A active) */}
-      <div className="mx-auto max-w-6xl mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* LEFT column */}
-        <div>
-          {activeTaskId === 'B'
-            ? canvasElement // selected B -> editor on left, hide Task A
-            : renderTaskCard('A') /* no selection or A active -> show Task A card */}
+        {/* Notice */}
+        <div className="mx-auto max-w-6xl bg-amber-50 border border-amber-200 rounded-xl px-3 sm:px-4 py-3">
+          <p className="text-[11px] sm:text-sm text-amber-900">
+            <span className="font-semibold">Hinweis:&nbsp;</span>
+            Task A is shown on one side and Task B on the other. If you select{' '}
+            <strong>Task A</strong>, the editor opens on the opposite side and Task B
+            is hidden. If you select <strong>Task B</strong>, the editor opens on the
+            other side and Task A is hidden.
+          </p>
         </div>
 
-        {/* RIGHT column */}
-        <div>
-          {activeTaskId === 'A'
-            ? canvasElement // selected A -> editor on right, hide Task B
-            : renderTaskCard('B') /* no selection or B active -> show Task B card */}
+        {/* Main area: left = A or canvas (when B active), right = B or canvas (when A active) */}
+        <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+          {/* LEFT column */}
+          <div className="space-y-2">
+            {activeTaskId === 'B'
+              ? canvasElement // selected B -> editor on left, hide Task A
+              : renderTaskCard('A') /* no selection or A active -> show Task A card */}
+          </div>
+
+          {/* RIGHT column */}
+          <div className="space-y-2">
+            {activeTaskId === 'A'
+              ? canvasElement // selected A -> editor on right, hide Task B
+              : renderTaskCard('B') /* no selection or B active -> show Task B card */}
+          </div>
         </div>
       </div>
     </div>

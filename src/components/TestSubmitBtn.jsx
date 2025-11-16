@@ -8,7 +8,7 @@ import { useExamTimer } from "../components/ExamTimerContext"; // ✅ import tim
 export default function TestSubmitBtn() {
   const { testId } = useParams();
   const router = useRouter();
-  const { remainingSeconds, activeTestId } = useExamTimer(); // ⏱️ global timer
+  const { remainingSeconds, activeTestId, stopTimer } = useExamTimer(); // ⏱️ global timer
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null); // server response summary
@@ -26,6 +26,8 @@ export default function TestSubmitBtn() {
       `writing_qid_${tid}_A`,
       `writing_qid_${tid}_B`,
       `exam_assignment_${tid}`,
+      `audio_${tid}`, 
+      `exam_end_${tid}`,
     ];
     keysToClear.forEach((k) => {
       try {
@@ -104,6 +106,27 @@ export default function TestSubmitBtn() {
         console.warn('Building writing answers failed:', e);
       }
 
+      let audioAnswers = [];
+
+      try {
+        const raw = localStorage.getItem(`exam_answers_${testId}`);
+        const parsed = raw ? JSON.parse(raw) : {};
+        const audioObj =
+          parsed &&
+          parsed.levels &&
+          parsed.levels.audio &&
+          typeof parsed.levels.audio === "object"
+            ? parsed.levels.audio
+            : {};
+
+        audioAnswers = Object.entries(audioObj).map(([qid, val]) => ({
+          questionId: qid,
+          answer: val === "richtig" || val === true ? true : false,
+        }));
+      } catch (e) {
+        console.warn("Failed to extract audio answers:", e);
+      }
+
       const startedAt = localStorage.getItem(`writing_${testId}_startedAt`) || localStorage.getItem(`writing_${testId}_startedAt`);
       const secondsLeft = Number(localStorage.getItem(`writing_${testId}_secondsLeft`) || 0);
       const assignmentId = localStorage.getItem(`exam_assignment_${testId}`) || null;
@@ -128,6 +151,7 @@ export default function TestSubmitBtn() {
           secondsLeft: secondsLeft || 0,
           submittedAt: new Date().toISOString(),
         },
+        audio: audioAnswers, 
         completedTabs,
         submittedAt: new Date().toISOString(),
       };
@@ -137,7 +161,7 @@ export default function TestSubmitBtn() {
       // 5) POST to server
       const endpoint = `/course-test/course-submit/`;
       const res = await api.post(endpoint, payload);
-
+      console.log(res,"=========");
       const success =
         res?.status === 200 ||
         (res?.data && (res.data.success === true || res.data.status === 'success'));
@@ -154,6 +178,8 @@ export default function TestSubmitBtn() {
         clearLocalStorageKeys(testId);
         try {
           localStorage.removeItem(`exam_answers_${testId}`);
+          stopTimer();
+          
         } catch {}
         setResult(resultInfo);
       } else {

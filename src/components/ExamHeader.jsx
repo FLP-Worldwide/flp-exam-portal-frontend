@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useExamTimer } from "../components/ExamTimerContext"; // ✅ import context hook
-
+import Link from "next/link";
 export default function ExamHeader({
   title = "Exam Portal",
   subtitle = "Classroom or Practice Test",
@@ -45,7 +45,9 @@ export default function ExamHeader({
 
             <div className="flex items-center gap-3">
               <div className="w-30 h-10 rounded-md overflow-hidden flex items-center justify-center">
-                <img src={logoSrc} alt="Logo" />
+               <Link href="/dashboard">
+                <img src={logoSrc} alt="Logo" className="h-full w-auto cursor-pointer" />
+              </Link>
               </div>
 
               <div className="leading-tight">

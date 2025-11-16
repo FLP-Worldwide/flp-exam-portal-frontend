@@ -3,12 +3,12 @@
 import AudioPlayer from 'react-h5-audio-player';
 import 'react-h5-audio-player/lib/styles.css';
 
-const Player = () => (
+const Player = ({src}) => (
+
     <AudioPlayer
-        autoPlay
-        src="/sample-3s.mp3"
+        autoPlay={false}
+        src={src}
         onPlay={e => console.log("onPlay")}
-        // other props here
         className='w-96'
     />
 );

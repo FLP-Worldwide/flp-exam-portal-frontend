@@ -1,6 +1,27 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import {
+  Card,
+  Button,
+  Space,
+  Tag,
+  Row,
+  Col,
+  Statistic,
+  Alert,
+  Spin,
+  Result,
+} from "antd";
+import {
+  ClockCircleOutlined,
+  ArrowLeftOutlined,
+  PlayCircleOutlined,
+  CheckCircleOutlined,
+  AlertOutlined,
+  FileTextOutlined,
+} from "@ant-design/icons";
+import { toast } from "react-hot-toast";
 import api from "../../../../utils/axios";
 import { useExamTimer } from "../../../../components/ExamTimerContext";
 
@@ -8,7 +29,6 @@ export default function StartExamModule() {
   const { testId } = useParams();
   const router = useRouter();
 
-  // use context
   const { startTimer } = useExamTimer();
 
   const [testObj, setTestObj] = useState(null);
@@ -22,14 +42,17 @@ export default function StartExamModule() {
       try {
         setLoading(true);
         const res = await api.get(`/course-test/detail-instruction/${testId}`);
-        // normalize response shapes
+
         const payload =
           (res && res.data && res.data.test) ||
           (res && res.data && res.data.data && res.data.data.test) ||
           res.data ||
           null;
         const final =
-          (payload && payload.test) || (payload && payload.data) || payload || null;
+          (payload && payload.test) ||
+          (payload && payload.data) ||
+          payload ||
+          null;
 
         if (!final) {
           console.error("Unexpected test response shape:", res);
@@ -69,29 +92,32 @@ export default function StartExamModule() {
     return `${hh}${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
-  // The Start flow: ensure attemptsLeft > 0, call server to consume attempt, then set endTime via context and redirect.
   const startExamAndRedirect = async () => {
-    if (!testObj) return alert("Test data not loaded.");
-    if (!testId) return alert("Missing test id.");
+    if (!testObj) {
+      toast.error("Test data not loaded.");
+      return;
+    }
+    if (!testId) {
+      toast.error("Missing test id.");
+      return;
+    }
 
     const attemptsInfo = testObj.attemptsInfo || null;
     const attemptsLeft = attemptsInfo?.attemptsLeft ?? null;
     const assignmentId = attemptsInfo?.assignmentId ?? null;
 
-    // if server didn't return attemptsInfo, we behave conservatively and allow start — but it's better that server returns it.
     if (attemptsLeft !== null && attemptsLeft <= 0) {
-      return alert("No attempts left for this test.");
+      toast.error("No attempts left for this test.");
+      return;
     }
 
     // If there is already an active attempt (endTime stored), only allow Continue
     const existingSecs = getStoredRemainingSeconds();
     if (existingSecs && existingSecs > 0) {
-      // If an active attempt exists, we shouldn't consume another attempt — just continue
       router.push(`/dashboard/exam/${testId}/start`);
       return;
     }
 
-    // Now consume an attempt server-side
     setStarting(true);
     try {
       const payload = assignmentId ? { assignmentId } : {};
@@ -103,30 +129,39 @@ export default function StartExamModule() {
         null;
 
       if (!respData) {
-        console.warn("Start API returned unexpected shape, proceeding locally. Ensure server increments attempts.");
+        console.warn(
+          "Start API returned unexpected shape, proceeding locally. Ensure server increments attempts."
+        );
       }
 
       const newAttemptsInfo = respData?.attemptsInfo || null;
       if (newAttemptsInfo && typeof newAttemptsInfo.attemptsLeft === "number") {
         if (
           newAttemptsInfo.attemptsLeft <= 0 &&
-          (newAttemptsInfo.attemptsGiven || 0) >= (newAttemptsInfo.maxAttempts || 0)
+          (newAttemptsInfo.attemptsGiven || 0) >=
+            (newAttemptsInfo.maxAttempts || 0)
         ) {
-          // server says no attempts left
-          return toast("No attempts left (server). You cannot start the test.");
+          toast.error("No attempts left. You cannot start the test.");
+          setStarting(false);
+          return;
         }
       }
 
-      // Determine durationSeconds (assumes duration values are in seconds)
-      const durationSeconds = Number((respData && respData.duration) ?? testObj.duration ?? 0);
+      const durationSeconds = Number(
+        (respData && respData.duration) ?? testObj.duration ?? 0
+      );
 
       if (!durationSeconds || durationSeconds <= 0) {
-        return toast("Invalid test duration.");
+        toast.error("Invalid test duration.");
+        setStarting(false);
+        return;
       }
 
-      // Use context to start timer (this will persist to localStorage and sync across tabs)
       const returnedAssignmentId =
-        newAttemptsInfo?.assignmentId || respData?.assignmentId || assignmentId || null;
+        newAttemptsInfo?.assignmentId ||
+        respData?.assignmentId ||
+        assignmentId ||
+        null;
 
       const started = startTimer({
         testId,
@@ -135,21 +170,23 @@ export default function StartExamModule() {
       });
 
       if (!started) {
-        toast("Failed to initialize exam timer.");
+        toast.error("Failed to initialize exam timer.");
         setStarting(false);
         return;
       }
 
-      // navigate to the questions page
       router.push(`/dashboard/exam/${testId}/start`);
     } catch (err) {
       console.error("Failed to start exam:", err?.response || err);
       const status = err?.response?.status;
-      const msg = err?.response?.data?.message || err?.message || "Failed to start exam.";
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to start exam.";
       if (status === 403 || status === 400) {
-        toast(msg || "Cannot start exam: attempts exhausted or not allowed.");
+        toast.error(msg || "Cannot start exam: attempts exhausted or not allowed.");
       } else {
-        toast("Failed to start exam. Please try again.");
+        toast.error("Failed to start exam. Please try again.");
       }
     } finally {
       setStarting(false);
@@ -157,14 +194,39 @@ export default function StartExamModule() {
   };
 
   if (loading) {
-    return <div style={{ textAlign: "center", marginTop: 40 }}>Loading...</div>;
+    return (
+      <div
+        style={{
+          padding: 32,
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        <Spin size="large" />
+      </div>
+    );
   }
 
   if (!testObj) {
-    return <div style={{ textAlign: "center", marginTop: 40 }}>No test data found</div>;
+    return (
+      <Result
+        status="404"
+        title="Test not found"
+        subTitle="We couldn’t load details for this exam. Please go back to your dashboard and try again."
+        extra={
+          <Button
+            type="primary"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => router.push("/dashboard")}
+          >
+            Back to Dashboard
+          </Button>
+        }
+        style={{ padding: 24 }}
+      />
+    );
   }
 
-  // Display values
   const testName = testObj.testName || testObj.title || "Untitled Test";
   const durationRaw = testObj.duration || 0;
   const price = testObj.price ?? 0;
@@ -172,104 +234,144 @@ export default function StartExamModule() {
   const totalLevels = testObj.totalLevels ?? testObj.total_levels ?? "--";
   const attemptsInfo = testObj.attemptsInfo || null;
   const attemptsLeft = attemptsInfo?.attemptsLeft ?? null;
-
-  // If there is an active in-progress endTime
   const existingSecs = getStoredRemainingSeconds();
-
+const attemptsColor =
+  attemptsLeft === 0
+    ? "#cf1322"
+    : attemptsLeft <= 1
+    ? "#faad14"
+    : "#52c41a";
   return (
-    <div style={{ padding: 24, maxWidth: 900, margin: "auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700 }}>{testName}</h1>
-        <div style={{ fontSize: 14, color: "#666" }}>Duration: {Math.floor(durationRaw / 60)} mins</div>
+    <div style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
+     <Card
+  bordered={false}
+  style={{ borderRadius: 16, marginBottom: 16 }}
+  title={
+    <Space align="center">
+      <FileTextOutlined />
+      <span>{testName}</span>
+    </Space>
+  }
+  extra={
+    <Space size="large" align="center">
+      {/* Duration */}
+      <Tag icon={<ClockCircleOutlined />} color="processing">
+        {Math.floor(durationRaw / 60)} mins
+      </Tag>
+
+      {/* Attempts left compact block */}
+      <div style={{ textAlign: "right", minWidth: 110 }}>
+        <div style={{ fontSize: 11, color: "#8c8c8c" }}>Attempts left</div>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: attemptsInfo ? attemptsColor : "#999",
+          }}
+        >
+          {attemptsInfo
+            ? `${attemptsLeft} / ${attemptsInfo.maxAttempts}`
+            : "--"}
+        </div>
       </div>
+    </Space>
+  }
+>
+        
 
-      <p style={{ fontSize: 16, color: "#444" }}>
-        <strong>Price:</strong> ₹{price} <br />
-        <strong>Sections:</strong> {totalSections} &nbsp; <strong>Levels:</strong> {totalLevels}
-      </p>
+        {/* Instructions */}
+        <Card
+          type="inner"
+          title={
+            <Space>
+              <AlertOutlined />
+              <span>Instructions</span>
+            </Space>
+          }
+          style={{ marginTop: 24, borderRadius: 12 }}
+        >
+          <ul style={{ paddingLeft: 20, marginBottom: 0 }}>
+            <li>Read each question carefully before answering.</li>
+            <li>You have {Math.floor(durationRaw / 60)} minutes to complete the test.</li>
+            <li>Do not refresh or close the browser tab while the test is running.</li>
+            <li>The test will be automatically submitted when the timer ends.</li>
+          </ul>
+        </Card>
 
-      <div style={{ marginTop: 20, padding: 16, border: "1px solid #eee", borderRadius: 6 }}>
-        <h3 style={{ marginTop: 0 }}>Instructions</h3>
-        <ul>
-          <li>Read each question carefully.</li>
-          <li>You have {Math.floor(durationRaw / 60)} minutes to complete the test.</li>
-          <li>Do not refresh the page while the test is running.</li>
-          <li>The test will be automatically submitted when the timer ends.</li>
-        </ul>
-      </div>
-
-      <div style={{ marginTop: 22, display: "flex", gap: 12, alignItems: "center" }}>
-        {/* Show attempts status if returned by server */}
-        {attemptsInfo ? (
-          <div style={{ fontWeight: 600 }}>
-            Attempts left: {attemptsLeft} / {attemptsInfo.maxAttempts}
+        {/* Active attempt notice or action buttons */}
+        <div
+          style={{
+            marginTop: 24,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 12,
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 220 }}>
+            {existingSecs && existingSecs > 0 ? (
+              <Alert
+                type="warning"
+                showIcon
+                message="An exam attempt is already running."
+                description={
+                  <>
+                    Time remaining:{" "}
+                    <strong>{formatTime(existingSecs)}</strong>
+                  </>
+                }
+              />
+            ) : attemptsLeft !== null && attemptsLeft <= 0 ? (
+              <Alert
+                type="error"
+                showIcon
+                message="No attempts remaining"
+                description="You have used all attempts for this test."
+              />
+            ) : (
+              <Alert
+                type="info"
+                showIcon
+                message="Ready to start?"
+                description="Click 'Start Exam' when you are ready. The timer will begin immediately."
+              />
+            )}
           </div>
-        ) : null}
 
-        {/* If an attempt is already active in localStorage, allow only Continue */}
-        {existingSecs && existingSecs > 0 ? (
-          <>
-            <div style={{ alignSelf: "center", fontWeight: 600 }}>
-              Active attempt — Time remaining: {formatTime(existingSecs)}
-            </div>
-            <button
-              onClick={() => router.push(`/dashboard/exam/${testId}/start`)}
-              style={{
-                backgroundColor: "#1677ff",
-                color: "#fff",
-                padding: "10px 18px",
-                border: "none",
-                borderRadius: 6,
-                fontSize: 16,
-                cursor: "pointer",
-              }}
-            >
-              Continue Exam
-            </button>
-          </>
-        ) : (
-          <>
-            {/* If attemptsLeft is known and zero -> disable start */}
-            <button
-              onClick={startExamAndRedirect}
-              disabled={starting || (attemptsLeft !== null && attemptsLeft <= 0)}
-              style={{
-                backgroundColor: attemptsLeft === 0 ? "#d9d9d9" : "#1677ff",
-                color: attemptsLeft === 0 ? "#777" : "#fff",
-                padding: "10px 18px",
-                border: "none",
-                borderRadius: 6,
-                fontSize: 16,
-                cursor: attemptsLeft === 0 ? "not-allowed" : "pointer",
-              }}
-            >
-              {starting ? "Starting..." : "Start Exam"}
-            </button>
+          <Space style={{ marginTop: 8 }} wrap>
+            {existingSecs && existingSecs > 0 ? (
+              <Button
+                type="primary"
+                icon={<PlayCircleOutlined />}
+                size="large"
+                onClick={() => router.push(`/dashboard/exam/${testId}/start`)}
+              >
+                Continue Exam
+              </Button>
+            ) : (
+              <Button
+                type="primary"
+                icon={<PlayCircleOutlined />}
+                size="large"
+                loading={starting}
+                disabled={attemptsLeft !== null && attemptsLeft <= 0}
+                onClick={startExamAndRedirect}
+              >
+                {starting ? "Starting..." : "Start Exam"}
+              </Button>
+            )}
 
-            <button
+            <Button
+              icon={<ArrowLeftOutlined />}
+              size="large"
               onClick={() => router.push("/dashboard")}
-              style={{
-                backgroundColor: "#fff",
-                color: "#333",
-                padding: "10px 14px",
-                border: "1px solid #ddd",
-                borderRadius: 6,
-                fontSize: 14,
-                cursor: "pointer",
-              }}
             >
               Back to Dashboard
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* If attempts exhausted show message */}
-      {attemptsLeft !== null && attemptsLeft <= 0 && (
-        <div style={{ marginTop: 12, color: "#cf1322", fontWeight: 600 }}>
-          You have used all attempts for this test.
+            </Button>
+          </Space>
         </div>
-      )}
+      </Card>
     </div>
   );
 }
