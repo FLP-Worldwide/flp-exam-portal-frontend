@@ -92,106 +92,63 @@ export default function StartExamModule() {
     return `${hh}${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
-  const startExamAndRedirect = async () => {
-    if (!testObj) {
-      toast.error("Test data not loaded.");
-      return;
-    }
-    if (!testId) {
-      toast.error("Missing test id.");
-      return;
-    }
+ const startExamAndRedirect = async () => {
+  if (!testObj) {
+    toast.error("Test data not loaded.");
+    return;
+  }
+  if (!testId) {
+    toast.error("Missing test id.");
+    return;
+  }
 
-    const attemptsInfo = testObj.attemptsInfo || null;
-    const attemptsLeft = attemptsInfo?.attemptsLeft ?? null;
-    const assignmentId = attemptsInfo?.assignmentId ?? null;
+  const attemptsInfo = testObj.attemptsInfo || null;
+  const attemptsLeft = attemptsInfo?.attemptsLeft ?? null;
+  const assignmentId = attemptsInfo?.assignmentId ?? null;
 
-    if (attemptsLeft !== null && attemptsLeft <= 0) {
-      toast.error("No attempts left for this test.");
-      return;
-    }
+  // ❗ Only block if attemptsLeft < 0 (means already exceeded)
+  if (attemptsLeft !== null && attemptsLeft < 0) {
+    toast.error("No attempts left for this test.");
+    return;
+  }
 
-    // If there is already an active attempt (endTime stored), only allow Continue
-    const existingSecs = getStoredRemainingSeconds();
-    if (existingSecs && existingSecs > 0) {
-      router.push(`/dashboard/exam/${testId}/start`);
-      return;
-    }
+  // If active exam exists, continue it
+  const existingSecs = getStoredRemainingSeconds();
+  if (existingSecs && existingSecs > 0) {
+    router.push(`/dashboard/exam/${testId}/start`);
+    return;
+  }
 
-    setStarting(true);
-    try {
-      const payload = assignmentId ? { assignmentId } : {};
-      const startRes = await api.post(`/course-test/attempt/${testId}`, payload);
+  setStarting(true);
 
-      const respData =
-        (startRes && startRes.data && startRes.data.data) ||
-        (startRes && startRes.data) ||
-        null;
+  try {
+    const payload = assignmentId ? { assignmentId } : {};
+    await api.post(`/course-test/attempt/${testId}`, payload); // ❗ Just fire and forget
 
-      if (!respData) {
-        console.warn(
-          "Start API returned unexpected shape, proceeding locally. Ensure server increments attempts."
-        );
-      }
+    // Always start exam immediately (ignore returned attemptsLeft)
+    const durationSeconds = Number(testObj.duration ?? 0);
 
-      const newAttemptsInfo = respData?.attemptsInfo || null;
-      if (newAttemptsInfo && typeof newAttemptsInfo.attemptsLeft === "number") {
-        if (
-          newAttemptsInfo.attemptsLeft <= 0 &&
-          (newAttemptsInfo.attemptsGiven || 0) >=
-            (newAttemptsInfo.maxAttempts || 0)
-        ) {
-          toast.error("No attempts left. You cannot start the test.");
-          setStarting(false);
-          return;
-        }
-      }
+    const started = startTimer({
+      testId,
+      durationSeconds,
+      assignmentId: assignmentId || null,
+    });
 
-      const durationSeconds = Number(
-        (respData && respData.duration) ?? testObj.duration ?? 0
-      );
-
-      if (!durationSeconds || durationSeconds <= 0) {
-        toast.error("Invalid test duration.");
-        setStarting(false);
-        return;
-      }
-
-      const returnedAssignmentId =
-        newAttemptsInfo?.assignmentId ||
-        respData?.assignmentId ||
-        assignmentId ||
-        null;
-
-      const started = startTimer({
-        testId,
-        durationSeconds,
-        assignmentId: returnedAssignmentId,
-      });
-
-      if (!started) {
-        toast.error("Failed to initialize exam timer.");
-        setStarting(false);
-        return;
-      }
-
-      router.push(`/dashboard/exam/${testId}/start`);
-    } catch (err) {
-      console.error("Failed to start exam:", err?.response || err);
-      const status = err?.response?.status;
-      const msg =
-        err?.response?.data?.message ||
-        err?.message ||
-        "Failed to start exam.";
-      if (status === 403 || status === 400) {
-        toast.error(msg || "Cannot start exam: attempts exhausted or not allowed.");
-      } else {
-        toast.error("Failed to start exam. Please try again.");
-      }
-    } finally {
+    if (!started) {
+      toast.error("Failed to initialize exam timer.");
       setStarting(false);
+      return;
     }
-  };
+
+    router.push(`/dashboard/exam/${testId}/start`);
+  } catch (err) {
+    console.error("Failed to start exam:", err?.response || err);
+    toast.error("Failed to start exam. Please try again.");
+  } finally {
+    setStarting(false);
+  }
+};
+
 
   if (loading) {
     return (

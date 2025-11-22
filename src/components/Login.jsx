@@ -42,10 +42,9 @@ export default function Login() {
         else if (role === "teacher") router.push("/admin");
         else if (role === "admin") router.push("/admin");
         else router.push("/");
-
-
     } catch (err) {
       setError(err.message || "Invalid credentials");
+      setLoading(false);
     } 
   };
 

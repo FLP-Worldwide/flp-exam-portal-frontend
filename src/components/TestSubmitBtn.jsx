@@ -330,22 +330,7 @@ export default function TestSubmitBtn() {
           </div>
 
           {/* Optional extra audio details (questions/points) */}
-          {audioSummary && (
-            <div className="mb-4 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
-              <div className="flex items-center justify-between text-xs text-gray-600">
-                <span>
-                  Listening questions:{" "}
-                  <strong>{audioSummary.totalQuestions}</strong>
-                </span>
-                <span>
-                  Listening marks:{" "}
-                  <strong>
-                    {audioSummary.earnedPoints} / {audioSummary.maxPoints}
-                  </strong>
-                </span>
-              </div>
-            </div>
-          )}
+          
 
           {/* Footer buttons */}
           <div className="mt-4 flex justify-end gap-3">
@@ -360,6 +345,12 @@ export default function TestSubmitBtn() {
               className="px-4 py-2 rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700"
             >
               Go to dashboard
+            </button>
+            <button
+              onClick={() => router.push(`/dashboard/result/${testId}`)}
+              className="px-4 py-2 rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              View detaild score
             </button>
           </div>
         </div>
