@@ -1,24 +1,27 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useExamTimer } from "../components/ExamTimerContext"; // ✅ import context hook
+import { useExamTimer } from "../components/ExamTimerContext";
 import Link from "next/link";
+
 export default function ExamHeader({
   title = "Exam Portal",
   subtitle = "Classroom or Practice Test",
   logoSrc = "https://flpworldwide.com/wp-content/uploads/2024/12/FLP-Logo-e1739693871975-1024x344.png",
   onMenuToggle,
-  userName = "Student Name",
+  userName,            // <- dynamic
+  userRole = "Student" // <- optional
 }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
-
-  // ✅ access global timer values
   const { formatted, remainingSeconds, activeTestId } = useExamTimer();
+
+  const displayName =
+    userName && userName.trim().length > 0 ? userName : "Student";
 
   function toggle() {
     setOpen(!open);
-    if (onMenuToggle) onMenuToggle(!open);
+    onMenuToggle?.(!open);
   }
 
   const handleLogout = () => {
@@ -31,7 +34,7 @@ export default function ExamHeader({
     <header className="w-full bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-start sm:items-center justify-between py-3 md:py-4 gap-4">
-          {/* left: logo + title */}
+          {/* left */}
           <div className="flex items-start sm:items-center gap-3">
             <button
               onClick={toggle}
@@ -45,33 +48,34 @@ export default function ExamHeader({
 
             <div className="flex items-center gap-3">
               <div className="w-30 h-10 rounded-md overflow-hidden flex items-center justify-center">
-               <Link href="/dashboard">
-                <img src={logoSrc} alt="Logo" className="h-full w-auto cursor-pointer" />
-              </Link>
+                <Link href="/dashboard">
+                  <img src={logoSrc} alt="Logo" className="h-full w-auto cursor-pointer" />
+                </Link>
               </div>
 
               <div className="leading-tight">
                 <div className="text-lg font-semibold text-gray-900">{title}</div>
                 {subtitle ? (
-                  <div className="text-xs text-gray-500 mt-0.5 hidden sm:block">{subtitle}</div>
+                  <div className="text-xs text-gray-500 mt-0.5 hidden sm:block">
+                    {subtitle}
+                  </div>
                 ) : null}
               </div>
             </div>
           </div>
 
-          {/* middle: breadcrumb */}
+          {/* middle breadcrumb */}
           <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-center">
             <nav aria-label="Breadcrumb" className="text-sm text-gray-600">
               <ol className="flex items-center gap-2">
-                <li>Home</li>
+                <li>Dashboard</li>
                 <li className="text-gray-300">/</li>
-                <li>Courses</li>
-                <li className="text-gray-300">/</li>
+                <li>Exams</li>
               </ol>
             </nav>
           </div>
 
-          {/* right: actions + avatar */}
+          {/* right */}
           <div className="flex items-center gap-3">
             {/* notifications */}
             <button
@@ -94,30 +98,16 @@ export default function ExamHeader({
               </svg>
             </button>
 
-            {/* ✅ Exam timer button */}
+            {/* exam timer */}
             {remainingSeconds > 0 ? (
               <button
-                onClick={() => {
-                  if (activeTestId) {
-                    router.push(`/dashboard/exam/${activeTestId}/start`);
-                  }
-                }}
+                onClick={() => activeTestId && router.push(`/dashboard/exam/${activeTestId}/start`)}
                 className="hidden md:inline-flex items-center gap-2 px-3 py-1 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
                 aria-label="Exam timer"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 8v4l2 2"
-                  />
-                  <path
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 20a8 8 0 100-16 8 8 0 000 16z"
-                  />
+                  <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l2 2" />
+                  <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 20a8 8 0 100-16 8 8 0 000 16z" />
                 </svg>
                 <span className="font-mono font-medium text-gray-800">{formatted}</span>
               </button>
@@ -128,18 +118,8 @@ export default function ExamHeader({
                 aria-label="Exam timer"
               >
                 <svg className="w-4 h-4 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 8v4l2 2"
-                  />
-                  <path
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 20a8 8 0 100-16 8 8 0 000 16z"
-                  />
+                  <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l2 2" />
+                  <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 20a8 8 0 100-16 8 8 0 000 16z" />
                 </svg>
                 <span>00:00:00</span>
               </button>
@@ -148,33 +128,44 @@ export default function ExamHeader({
             {/* user */}
             <div className="flex items-center gap-2">
               <div className="text-right hidden sm:block">
-                <div className="text-sm font-medium text-gray-800">{userName}</div>
-                <div className="text-xs text-gray-500">Student</div>
+                <div className="text-sm font-medium text-gray-800">{displayName}</div>
+                <div className="text-xs text-gray-500">{userRole}</div>
               </div>
               <button
                 className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center"
                 aria-label="Open profile"
               >
                 <span className="text-sm font-semibold text-gray-700">
-                  {(userName || "U").charAt(0)}
+                  {(displayName || "U").charAt(0)}
                 </span>
               </button>
             </div>
 
-            <div>
-              <button onClick={handleLogout}>Logout</button>
-            </div>
+            <button
+              onClick={handleLogout}
+              className="text-xs text-red-600 hover:underline"
+            >
+              Logout
+            </button>
           </div>
         </div>
 
-        {/* optional mobile menu */}
+        {/* mobile menu */}
         {open && (
           <div className="sm:hidden mt-2 pb-3 border-t border-gray-100">
-            <div className="flex flex-col gap-1 px-1">
-              <a className="px-3 py-2 rounded hover:bg-gray-50">Dashboard</a>
-              <a className="px-3 py-2 rounded hover:bg-gray-50">My Exams</a>
-              <a className="px-3 py-2 rounded hover:bg-gray-50">Results</a>
-              <a className="px-3 py-2 rounded hover:bg-gray-50">Settings</a>
+            <div className="flex flex-col gap-1 px-1 text-sm">
+              <button className="px-3 py-2 rounded hover:bg-gray-50 text-left">
+                Dashboard
+              </button>
+              <button className="px-3 py-2 rounded hover:bg-gray-50 text-left">
+                My Exams
+              </button>
+              <button className="px-3 py-2 rounded hover:bg-gray-50 text-left">
+                Results
+              </button>
+              <button className="px-3 py-2 rounded hover:bg-gray-50 text-left">
+                Settings
+              </button>
             </div>
           </div>
         )}
