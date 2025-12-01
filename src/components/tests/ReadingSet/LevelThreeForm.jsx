@@ -1,17 +1,17 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Layout,
   Card,
   Input,
   Button,
+  Form,
+  Space,
   Typography,
   Divider,
   Row,
   Col,
-  Space,
   Tag,
-  message,
 } from "antd";
 import {
   PlusOutlined,
@@ -28,83 +28,90 @@ const { Text } = Typography;
 const { TextArea } = Input;
 
 export default function LevelThreeForm({ testId, data }) {
-  const [paragraphs, setParagraphs] = useState([]);
+  const [paragraphs, setParagraphs] = useState([
+    { id: Date.now(), text: "", answer: "" },
+  ]);
+  const [options, setOptions] = useState(["", "", "", ""]);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Prefill from existing data (if available)
+  // ✅ Prefill when data is available
   useEffect(() => {
-    if (data?.content?.paragraphs?.length > 0) {
-      const formatted = data.content.paragraphs.map((p, i) => ({
-        id: Date.now() + i,
-        paragraph: p.paragraph || "",
-        answer: p.answer || "",
-      }));
-      setParagraphs(formatted);
-    } else {
-      setParagraphs([{ id: Date.now(), paragraph: "", answer: "" }]);
+    if (data?.content) {
+      const prefilledParagraphs =
+        data.content.paragraphs?.map((p, idx) => ({
+          id: idx + 1,
+          text: p.paragraph || "",
+          answer: p.answer || "",
+        })) || [];
+
+      const prefilledOptions = data.content.options?.length
+        ? data.content.options
+        : ["", "", "", ""];
+
+      setParagraphs(
+        prefilledParagraphs.length
+          ? prefilledParagraphs
+          : [{ id: Date.now(), text: "", answer: "" }]
+      );
+      setOptions(prefilledOptions);
     }
   }, [data]);
 
-  // ✅ Handle Paragraph and Answer changes
-  const handleChange = (id, field, value) => {
-    setParagraphs((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
-    );
-  };
-
-  // ➕ Add new paragraph + answer pair
-  const addParagraph = () => {
-    setParagraphs((prev) => [
-      ...prev,
-      { id: Date.now(), paragraph: "", answer: "" },
+  const addParagraph = () =>
+    setParagraphs([
+      ...paragraphs,
+      { id: Date.now(), text: "", answer: "" },
     ]);
-  };
 
-  // 🗑️ Remove paragraph pair
-  const removeParagraph = (id) => {
-    if (paragraphs.length === 1) {
-      toast("At least one paragraph is required!");
-      return;
-    }
-    setParagraphs((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  // 💾 Submit Level 3 data
-  const handleSubmit = async () => {
-    if (!testId) {
-      toast.error("Test ID is missing!");
-      return;
-    }
-
-    const invalid = paragraphs.some(
-      (p) => !p.paragraph.trim() || !p.answer.trim()
+  const updateParagraph = (id, value) =>
+    setParagraphs(
+      paragraphs.map((p) => (p.id === id ? { ...p, text: value } : p))
     );
-    if (invalid) {
-      toast.error("Please fill all paragraphs and answers.");
-      return;
-    }
 
+  const updateAnswer = (id, value) =>
+    setParagraphs(
+      paragraphs.map((p) => (p.id === id ? { ...p, answer: value } : p))
+    );
+
+  const removeParagraph = (id) =>
+    setParagraphs(paragraphs.filter((p) => p.id !== id));
+
+  const addOption = () => setOptions([...options, ""]);
+
+  const updateOption = (index, value) =>
+    setOptions(options.map((opt, i) => (i === index ? value : opt)));
+
+  const handleSave = async () => {
     const payload = {
       testId,
       level: "3",
       module: "reading",
       content: {
         paragraphs: paragraphs.map((p) => ({
-          paragraph: p.paragraph.trim(),
+          paragraph: p.text.trim(),
           answer: p.answer.trim(),
         })),
+        options: options.filter((opt) => opt.trim() !== ""),
       },
     };
+
+    if (!payload.content.paragraphs[0]?.paragraph) {
+      toast.error("Please enter at least one paragraph!");
+      return;
+    }
+    if (payload.content.options.length === 0) {
+      toast.error("Please enter at least one option!");
+      return;
+    }
 
     try {
       setLoading(true);
       const res = await api.post("/course-test/details", payload);
-      toast.success(
-        res.data?.message || "Level 3 data saved successfully!"
+      toast.success(res.data?.message || "Level 3 saved successfully!");
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Failed to save Level 3!"
       );
-    } catch (err) {
-      console.error("Error saving Level 3:", err);
-      toast.error("Failed to save Level 3 data!");
     } finally {
       setLoading(false);
     }
@@ -114,14 +121,14 @@ export default function LevelThreeForm({ testId, data }) {
     <Layout style={{ minHeight: "100vh", background: "#f5f5f5" }}>
       <Content
         style={{
-          padding: 24,
+          padding: 12,
           display: "flex",
           justifyContent: "center",
         }}
       >
         <div style={{ width: "100%", maxWidth: 1100 }}>
           <Space direction="vertical" size="large" style={{ width: "100%" }}>
-            {/* HEADER */}
+            {/* TOP HEADER CARD */}
             <Card
               bordered={false}
               style={{
@@ -138,6 +145,7 @@ export default function LevelThreeForm({ testId, data }) {
                   gap: 16,
                 }}
               >
+                {/* LEFT: title + subtitle */}
                 <div style={{ flex: 1 }}>
                   <h2
                     style={{
@@ -155,21 +163,22 @@ export default function LevelThreeForm({ testId, data }) {
                       color: "#8c8c8c",
                     }}
                   >
-                    Define paragraphs and their short answers for advanced
-                    reading comprehension.
+                    Configure advanced paragraphs, answers and shared options for
+                    the reading module.
                   </p>
                 </div>
 
+                {/* RIGHT: save button */}
                 <Button
                   type="primary"
                   icon={<SaveOutlined />}
-                  onClick={handleSubmit}
+                  onClick={handleSave}
                   loading={loading}
                   style={{
                     height: 40,
                     paddingInline: 20,
-                    borderRadius: 999,
                     whiteSpace: "nowrap",
+                    borderRadius: 999,
                   }}
                 >
                   Save Level 3
@@ -177,19 +186,23 @@ export default function LevelThreeForm({ testId, data }) {
               </div>
             </Card>
 
+            {/* MAIN GRID */}
             <Row gutter={[16, 16]}>
-              {/* LEFT: Paragraphs & Answers */}
-              <Col xs={24} lg={16}>
+              {/* LEFT: PARAGRAPHS & ANSWERS */}
+              <Col xs={24} lg={14}>
                 <Card
                   bordered={false}
-                  style={{ borderRadius: 16 }}
+                  style={{
+                    width: "100%",
+                    borderRadius: 16,
+                  }}
                   title={
                     <Space>
                       <FileTextOutlined />
                       <span>Paragraphs & Answers</span>
                       {paragraphs.length > 0 && (
                         <Tag color="blue" style={{ borderRadius: 999 }}>
-                          {paragraphs.length} paragraph
+                          {paragraphs.length} item
                           {paragraphs.length > 1 ? "s" : ""}
                         </Tag>
                       )}
@@ -197,137 +210,211 @@ export default function LevelThreeForm({ testId, data }) {
                   }
                   bodyStyle={{ padding: 16 }}
                 >
-                  <Space
-                    direction="vertical"
-                    size="middle"
-                    style={{
-                      width: "100%",
-                      maxHeight: 520,
-                      overflowY: "auto",
-                      paddingRight: 4,
-                    }}
-                  >
-                    {paragraphs.map((p, index) => (
-                      <div
-                        key={p.id}
-                        style={{
-                          borderRadius: 12,
-                          border: "1px solid #f0f0f0",
-                          background: "#fafafa",
-                          padding: 14,
-                        }}
-                      >
+                  <Form layout="vertical">
+                    <Space
+                      direction="vertical"
+                      size="middle"
+                      style={{
+                        width: "100%",
+                        maxHeight: 480,
+                        overflowY: "auto",
+                        paddingRight: 4,
+                      }}
+                    >
+                      {paragraphs.length === 0 && (
                         <div
                           style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginBottom: 8,
+                            padding: 16,
+                            borderRadius: 12,
+                            background: "#fafafa",
+                            border: "1px dashed #e5e5e5",
+                            textAlign: "center",
                           }}
                         >
-                          <Space align="center">
-                            <Tag
-                              color="processing"
-                              style={{
-                                borderRadius: 999,
-                                paddingInline: 10,
-                                fontWeight: 500,
-                              }}
-                            >
-                              P{index + 1}
-                            </Tag>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              Paragraph & answer
-                            </Text>
-                          </Space>
-
-                          {paragraphs.length > 1 && (
-                            <Button
-                              type="link"
-                              size="small"
-                              danger
-                              icon={<DeleteOutlined />}
-                              onClick={() => removeParagraph(p.id)}
-                              style={{ paddingRight: 0 }}
-                            >
-                              Remove
-                            </Button>
-                          )}
-                        </div>
-
-                        <div style={{ marginBottom: 12 }}>
-                          <Text style={{ fontWeight: 500, fontSize: 13 }}>
-                            Paragraph
+                          <Text type="secondary">
+                            No paragraphs added yet. Use{" "}
+                            <Text strong>"Add Paragraph"</Text> to create one.
                           </Text>
-                          <TextArea
-                            rows={4}
-                            placeholder="Enter paragraph text..."
-                            value={p.paragraph}
-                            onChange={(e) =>
-                              handleChange(p.id, "paragraph", e.target.value)
-                            }
-                            style={{ marginTop: 6, background: "#fff" }}
-                          />
                         </div>
+                      )}
 
-                        <div>
-                          <Text style={{ fontWeight: 500, fontSize: 13 }}>
-                            Answer
-                          </Text>
-                          <TextArea
-                            rows={2}
-                            placeholder="Enter the answer..."
-                            value={p.answer}
-                            onChange={(e) =>
-                              handleChange(p.id, "answer", e.target.value)
+                      {paragraphs.map((p, index) => (
+                        <div
+                          key={p.id}
+                          style={{
+                            borderRadius: 12,
+                            border: "1px solid #f0f0f0",
+                            background: "#fafafa",
+                            padding: 14,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              marginBottom: 8,
+                            }}
+                          >
+                            <Space align="center">
+                              <Tag
+                                color="processing"
+                                style={{
+                                  borderRadius: 999,
+                                  paddingInline: 10,
+                                  fontWeight: 500,
+                                }}
+                              >
+                                P{index + 1}
+                              </Tag>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                Paragraph & answer
+                              </Text>
+                            </Space>
+
+                            {paragraphs.length > 1 && (
+                              <Button
+                                type="link"
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={() => removeParagraph(p.id)}
+                                style={{ paddingRight: 0 }}
+                              >
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+
+                          <Form.Item
+                            style={{ marginBottom: 10 }}
+                            label={
+                              <span style={{ fontWeight: 500 }}>
+                                Paragraph text
+                              </span>
                             }
-                            style={{ marginTop: 6, background: "#fff" }}
-                          />
+                          >
+                            <TextArea
+                              rows={4}
+                              placeholder="Enter paragraph text..."
+                              value={p.text}
+                              onChange={(e) =>
+                                updateParagraph(p.id, e.target.value)
+                              }
+                              style={{ background: "#fff" }}
+                            />
+                          </Form.Item>
+
+                          <Form.Item
+                            style={{ marginBottom: 0 }}
+                            label={
+                              <span style={{ fontWeight: 500 }}>
+                                Correct answer
+                              </span>
+                            }
+                          >
+                            <Input
+                              placeholder="Enter answer for this paragraph..."
+                              value={p.answer}
+                              onChange={(e) =>
+                                updateAnswer(p.id, e.target.value)
+                              }
+                            />
+                          </Form.Item>
                         </div>
-                      </div>
-                    ))}
-                  </Space>
+                      ))}
+                    </Space>
 
-                  <Divider />
-
-                  <Button
-                    type="dashed"
-                    icon={<PlusOutlined />}
-                    onClick={addParagraph}
-                    style={{ width: "100%", borderRadius: 999 }}
-                  >
-                    Add New Paragraph
-                  </Button>
+                    <Button
+                      type="dashed"
+                      icon={<PlusOutlined />}
+                      onClick={addParagraph}
+                      style={{
+                        width: "100%",
+                        marginTop: 16,
+                        borderRadius: 999,
+                      }}
+                    >
+                      Add Paragraph
+                    </Button>
+                  </Form>
                 </Card>
               </Col>
 
-              {/* RIGHT: Tips / Info */}
-              <Col xs={24} lg={8}>
+              {/* RIGHT: OPTIONS & HINT */}
+              <Col xs={24} lg={10}>
                 <Space
                   direction="vertical"
                   size="middle"
                   style={{ width: "100%" }}
                 >
+                  {/* OPTIONS CARD */}
                   <Card
                     bordered={false}
-                    style={{ borderRadius: 16, background: "#fafafa" }}
+                    style={{ borderRadius: 16 }}
                     title={
                       <Space>
                         <BulbOutlined />
-                        <span>Guidelines</span>
+                        <span>Options</span>
+                        {options.filter((o) => o.trim()).length > 0 && (
+                          <Tag color="green" style={{ borderRadius: 999 }}>
+                            {options.filter((o) => o.trim()).length} active
+                          </Tag>
+                        )}
                       </Space>
                     }
                     bodyStyle={{ padding: 16 }}
                   >
+                    <Space
+                      direction="vertical"
+                      size="small"
+                      style={{ width: "100%" }}
+                    >
+                      {options.map((opt, i) => (
+                        <Input
+                          key={i}
+                          placeholder={`Option ${String.fromCharCode(
+                            65 + i
+                          )}`}
+                          value={opt}
+                          onChange={(e) => updateOption(i, e.target.value)}
+                        />
+                      ))}
+                    </Space>
+
+                    <Button
+                      type="dashed"
+                      icon={<PlusOutlined />}
+                      onClick={addOption}
+                      style={{
+                        width: "100%",
+                        marginTop: 16,
+                        borderRadius: 999,
+                      }}
+                    >
+                      Add Option
+                    </Button>
+
+                    <Divider style={{ margin: "16px 0" }} />
+
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      These options will be shared across all paragraphs in this
+                      level. You can add as many as you need (A, B, C, D, ...).
+                    </Text>
+                  </Card>
+
+                  {/* SMALL INFO CARD */}
+                  <Card
+                    bordered={false}
+                    style={{ borderRadius: 16, background: "#fafafa" }}
+                  >
                     <Space direction="vertical" size={4}>
+                      <Text strong>Tips</Text>
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        • Use short, focused paragraphs to test specific skills.
-                        <br />
-                        • Answers should be concise and can be used for
-                        open-ended or short-text responses.
-                        <br />
-                        • Make sure each answer is clearly inferable from its
-                        paragraph.
+                        • Use Level 3 for slightly more advanced texts. <br />
+                        • Keep answers clear and unambiguous. <br />
+                        • Options should be similar in length and style so they
+                        don&apos;t give away the correct one too easily.
                       </Text>
                     </Space>
                   </Card>

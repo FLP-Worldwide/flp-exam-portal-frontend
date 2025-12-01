@@ -119,7 +119,7 @@ const Exam = () => {
       const payload = {
         testName: values.name,
         language: values.language,
-        price: values.price,
+        price: values.price || 100,
         duration: values.duration * 60 || 3600, // default 1 hour
       };
 
@@ -207,10 +207,11 @@ const Exam = () => {
 
           <Form.Item
             label="Test Price (₹)"
+            className="w-full"
             name="price"
-            rules={[{ required: true, message: "Please enter test price" }]}
+            rules={[{ required: false, message: "Please enter test price" }]}
           >
-            <InputNumber placeholder="Enter test price" className="w-full" min={0} />
+            <InputNumber placeholder="Enter test price"  className="" min={0} />
           </Form.Item>
 
           <Form.Item
@@ -221,8 +222,6 @@ const Exam = () => {
             <Select placeholder="Select language">
               <Option value="English">English</Option>
               <Option value="German">German</Option>
-              <Option value="French">French</Option>
-              <Option value="Spanish">Spanish</Option>
             </Select>
           </Form.Item>
         </Form>
