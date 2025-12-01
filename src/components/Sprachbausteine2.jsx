@@ -297,12 +297,12 @@ export default function Sprachbausteine2({
         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="max-w-2xl">
             <h2 className="text-lg font-semibold text-slate-900">
-              Level 5 – Word bank (Sprachbausteine)
+              Lesen 5 – Wortschatz (Sprachbausteine)
             </h2>
             <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
-              Read the text and decide which word fits each gap. First select a
-              word from the word bank on the right, then click on a gap in the
-              text. Each word can be used at most once.
+              Lesen Sie den Text und entscheiden Sie, welches Wort in die jeweilige Lücke passt. Wählen Sie zunächst ein
+              Wort aus der Wortliste auf der rechten Seite aus und klicken Sie dann auf eine Lücke im
+              Text. Jedes Wort kann höchstens einmal verwendet werden.
             </p>
           </div>
 
@@ -312,7 +312,7 @@ export default function Sprachbausteine2({
                 onClick={handleSaveProgress}
                 className="px-4 py-1.5 rounded-full text-xs md:text-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
               >
-                Save Progress
+                Fortschritt speichern
               </button>
             )}
             <button
@@ -324,7 +324,7 @@ export default function Sprachbausteine2({
                   : "bg-emerald-600 text-white hover:bg-emerald-700"
               }`}
             >
-              Submit Level
+              Level abschicken
             </button>
           </div>
         </div>
@@ -338,10 +338,10 @@ export default function Sprachbausteine2({
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 md:p-5 text-slate-900 leading-7">
             <div className="mb-3 flex items-center gap-2">
               <span className="inline-flex items-center justify-center rounded-full bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5">
-                Reading Text
+                Lesetext
               </span>
               <span className="text-[11px] text-slate-500">
-                Click on a gap to insert the selected word.
+                Klicken Sie auf eine Lücke, um das ausgewählte Wort einzufügen.
               </span>
             </div>
 
@@ -371,11 +371,11 @@ export default function Sprachbausteine2({
           {/* RIGHT: word bank + actions */}
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 md:p-5 flex flex-col">
             <h3 className="text-sm md:text-base font-semibold text-[#004080] mb-3">
-              Word bank
+              Wortschatz
             </h3>
             <p className="text-[11px] md:text-xs text-slate-500 mb-3">
-              Click a word to select it, then click on a gap in the text to
-              place it. Used words are greyed out.
+              Klicken Sie auf ein Wort, um es auszuwählen, und klicken Sie dann auf eine Lücke im Text, um
+              es einzufügen. Verwendete Wörter sind ausgegraut.
             </p>
 
             <div className="grid grid-cols-2 gap-2 mb-4">
@@ -401,27 +401,8 @@ export default function Sprachbausteine2({
                 );
               })}
 
-</div>
-              {Object.keys(usedWords).length > 0 && (
-              <div className="mt-4 text-xs md:text-sm text-slate-700">
-                <h3 className="font-semibold text-[#004080] mb-1">
-                  Your choices
-                </h3>
-                <ul className="list-disc list-inside space-y-0.5">
-                  {blankKeys.map((k, idx) => (
-                    <li key={`summary_${k}`}>
-                      {idx + 1}.{" "}
-                      <span className="font-medium">
-                        {usedWords[k] ?? "-"}
-                      </span>
-                      <span className="ml-2 text-[10px] text-slate-400">
-                        ({k})
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            </div>
+
             
 
             <div className="mt-auto flex items-center justify-between pt-2 border-t border-slate-100">
@@ -430,7 +411,7 @@ export default function Sprachbausteine2({
                 disabled={clearingRef.current || disabled}
                 className="px-4 py-1.5 rounded-full text-xs md:text-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Clear All
+                Alle löschen
               </button>
 
 

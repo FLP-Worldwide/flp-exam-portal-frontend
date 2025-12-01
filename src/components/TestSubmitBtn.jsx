@@ -346,12 +346,7 @@ export default function TestSubmitBtn() {
             >
               Go to dashboard
             </button>
-            <button
-              onClick={() => router.push(`/dashboard/result/${testId}`)}
-              className="px-4 py-2 rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              View detaild score
-            </button>
+           
           </div>
         </div>
       </div>

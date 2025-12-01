@@ -42,11 +42,11 @@ const AuthLayout = ({ children }) => {
           <ExamHeader
             userName={userName}
             userRole="Student"
-            title="Exam Portal"
+            title="testyourgerman.com"
             subtitle={
               loadingStudent
                 ? "Loading your profile..."
-                : "Classroom or Practice Test"
+                : "Practice Exam Portal"
             }
           />
           <main className="flex-1">{children}</main>

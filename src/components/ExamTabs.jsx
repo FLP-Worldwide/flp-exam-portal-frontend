@@ -68,11 +68,11 @@ export default function ExamTabs() {
   });
 
   const tabs = [
-    { key: "lesen1", label: "Level 1" },
-    { key: "lesen2", label: "Level 2" },
-    { key: "lesen3", label: "Level 3" },
-    { key: "sprache1", label: "Level 4" },
-    { key: "sprache2", label: "Level 5" },
+    { key: "lesen1", label: "Lesen 1" },
+    { key: "lesen2", label: "Lesen 2" },
+    { key: "lesen3", label: "Lesen 3" },
+    { key: "sprache1", label: "Sprache 1" },
+    { key: "sprache2", label: "Sprache 2" },
   ];
 
   const tabComponents = {
@@ -507,7 +507,7 @@ export default function ExamTabs() {
   // ---------- RENDER ACTIVE ----------
   const renderActive = () => {
     const Comp = tabComponents[activeTab];
-    if (!Comp) return <div>Component not found for {activeTab}</div>;
+    if (!Comp) return <div>Komponente nicht gefunden für {activeTab}</div>;
 
     const rawQuestions = questionsByTab[activeTab] || [];
     const strictQuestions = rawQuestions.map((it) =>
@@ -539,15 +539,15 @@ export default function ExamTabs() {
           <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-lg sm:text-xl font-semibold text-slate-900 flex items-center gap-2">
-                Reading Module – Exam
+                Lesemodul – Prüfungsteil 1–5
               </h1>
               <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                Complete each level in sequence. Your answers are saved locally
-                per test.
+                Beenden Sie alle Stufen der Reihe nach. Ihre Antworten werden lokal
+                pro Test gespeichert.
               </p>
             </div>
             {testId && (
-              <div className="text-[11px] sm:text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-3 py-1 self-start sm:self-auto">
+              <div className="hidden text-[11px] sm:text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-3 py-1 self-start sm:self-auto">
                 Test ID: <span className="font-mono">{String(testId)}</span>
               </div>
             )}
@@ -591,7 +591,7 @@ export default function ExamTabs() {
               {loading ? (
                 <div className="flex flex-col items-center justify-center h-40 gap-2 text-slate-500 text-sm">
                   <div className="w-8 h-8 border-2 border-slate-300 border-t-[#004080] rounded-full animate-spin" />
-                  <span>Loading questions…</span>
+                  <span>Fragen werden geladen…</span>
                 </div>
               ) : (
                 renderActive()

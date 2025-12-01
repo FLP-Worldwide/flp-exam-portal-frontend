@@ -250,7 +250,7 @@ export default function WritingTest() {
 
   const handleSave = async () => {
     if (!activeTaskId) {
-      alert('Please select the task you want to submit (A or B).')
+      alert('Bitte wählen Sie die Aufgabe aus, die Sie einreichen möchten (A oder B).')
       return
     }
 
@@ -298,11 +298,11 @@ export default function WritingTest() {
       }
       router.push(`/dashboard/exam/${testId}/start/audio`);
       alert(
-        'Selected task saved locally. Use Final Submit to send everything to the server.'
+        'Ausgewählte Aufgabe lokal gespeichert. Verwenden Sie "Endgültig absenden", um alles an den Server zu senden.'
       )
     } catch (err) {
       console.warn('Could not persist final writing data locally', err)
-      alert('Failed to save locally — please try again.')
+      alert('Fehler beim lokalen Speichern — bitte versuchen Sie es erneut.')
     } finally {
       setSaving(false)
     }
@@ -313,7 +313,7 @@ export default function WritingTest() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="bg-white rounded-2xl shadow-md px-6 py-4 flex flex-col items-center gap-2">
           <div className="w-8 h-8 border-2 border-slate-300 border-t-[#0d2b57] rounded-full animate-spin" />
-          <p className="text-sm text-slate-600">Loading writing tasks…</p>
+          <p className="text-sm text-slate-600">Lade Schreibaufgaben…</p>
         </div>
       </div>
     )
@@ -324,10 +324,10 @@ export default function WritingTest() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="bg-white rounded-2xl shadow-md px-6 py-5 text-center max-w-md">
           <h2 className="text-lg font-semibold text-slate-900 mb-1">
-            No writing tasks found
+            Keine Schreibaufgaben gefunden
           </h2>
           <p className="text-sm text-slate-500">
-            This exam does not contain any writing tasks configured for the writing module.
+            Diese Prüfung enthält keine Schreibaufgaben, die für das Schreibmodul konfiguriert sind.
           </p>
         </div>
       </div>
@@ -346,7 +346,7 @@ export default function WritingTest() {
             {activeTask.title || `Task ${activeTaskId}`}
           </h3>
           <div className="text-xs sm:text-sm text-slate-600">
-            Words:{' '}
+            Wörter:{' '}
             <span className="font-semibold text-slate-900">{wordCount}</span>
           </div>
         </div>
@@ -360,25 +360,25 @@ export default function WritingTest() {
           onChange={handleTextChange}
           onFocus={ensureTimer}
           className="flex-1 w-full border border-slate-200 rounded-xl p-3 sm:p-4 text-sm outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400 resize-none"
-          placeholder="Write your text here…"
+          placeholder="Schreiben Sie Ihren Text hier…"
           spellCheck={true}
         />
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-3 text-[11px] sm:text-xs text-slate-500 gap-1">
           <span>
-            Started:{' '}
+            Gestartet:{' '}
             {startedAt ? new Date(startedAt).toLocaleString() : '—'}
           </span>
-          <span>Draft is saved in your browser automatically.</span>
+          <span>Entwurf wird automatisch in Ihrem Browser gespeichert.</span>
         </div>
       </div>
     ) : (
       <div className="bg-white rounded-2xl shadow-md border border-dashed border-slate-200 min-h-[420px] flex items-center justify-center text-slate-500">
         <div className="text-center px-4">
           <p className="font-medium text-slate-700">
-            Select Task A or Task B to start writing.
+            Wählen Sie Aufgabe A oder Aufgabe B, um mit dem Schreiben zu beginnen.
           </p>
           <p className="text-xs sm:text-sm mt-1">
-            Your writing editor will appear here once you choose a task.
+            Ihr Schreibeditor wird hier angezeigt, sobald Sie eine Aufgabe ausgewählt haben.
           </p>
         </div>
       </div>
@@ -412,7 +412,7 @@ export default function WritingTest() {
         </pre>
         {!isActive && (
           <p className="text-[11px] sm:text-xs text-slate-400 mt-2">
-            Click to choose Aufgabe {key} and open the editor on the opposite side.
+            Klicken Sie, um Aufgabe {key} auszuwählen und den Editor auf der gegenüberliegenden Seite zu öffnen.
           </p>
         )}
       </div>
@@ -430,7 +430,7 @@ export default function WritingTest() {
                 <span className="font-semibold">Schreiben</span>
                 <span className="opacity-80"> · Teil 1</span>
               </div>
-              <div className="bg-white/10 px-3 py-1.5 rounded-full text-xs sm:text-sm">
+              <div className="hidden bg-white/10 px-3 py-1.5 rounded-full text-xs sm:text-sm">
                 {tp} Punkte
               </div>
               <div className="bg-white/5 px-3 py-1.5 rounded-full text-[11px] sm:text-xs">
@@ -439,16 +439,7 @@ export default function WritingTest() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="text-xs sm:text-sm">
-                Remaining time:{' '}
-                <span
-                  className={`font-semibold tracking-tight ${
-                    secondsLeft <= 60 ? 'text-yellow-300' : 'text-emerald-200'
-                  }`}
-                >
-                  {timeStr}
-                </span>
-              </div>
+              
 
               <button
                 onClick={handleSave}
@@ -467,10 +458,8 @@ export default function WritingTest() {
         <div className="mx-auto max-w-6xl bg-amber-50 border border-amber-200 rounded-xl px-3 sm:px-4 py-3">
           <p className="text-[11px] sm:text-sm text-amber-900">
             <span className="font-semibold">Hinweis:&nbsp;</span>
-            Task A is shown on one side and Task B on the other. If you select{' '}
-            <strong>Task A</strong>, the editor opens on the opposite side and Task B
-            is hidden. If you select <strong>Task B</strong>, the editor opens on the
-            other side and Task A is hidden.
+            Auf der einen Seite wird Aufgabe A angezeigt, auf der anderen Seite Aufgabe B. Wenn Sie{' '}
+            <strong>Aufgabe A</strong> auswählen, öffnet sich der Editor auf der gegenüberliegenden Seite und Aufgabe B wird ausgeblendet. Wenn Sie <strong>Aufgabe B</strong> auswählen, öffnet sich der Editor auf der anderen Seite und Aufgabe A wird ausgeblendet.
           </p>
         </div>
 

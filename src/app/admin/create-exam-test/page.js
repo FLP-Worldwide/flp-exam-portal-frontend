@@ -120,7 +120,7 @@ const Exam = () => {
         testName: values.name,
         language: values.language,
         price: values.price,
-        duration: values.duration || 3600, // default 1 hour
+        duration: values.duration * 60 || 3600, // default 1 hour
       };
 
       const response = await api.post("course-test/create", payload);

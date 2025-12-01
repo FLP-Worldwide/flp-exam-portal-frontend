@@ -12,6 +12,16 @@ function makeOptionId(base, idx) {
   return `${base}_opt_${idx}`;
 }
 
+// 🔀 helper to shuffle options once per load
+function shuffleArray(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 function normalizeOptionRaw(rawOpt, base, idx) {
   if (rawOpt === null || rawOpt === undefined)
     return { id: makeOptionId(base, idx), title: String(rawOpt) };
@@ -57,7 +67,7 @@ export default function Sprachbausteine1({
   const { paragraphs, blanks } = useMemo(() => {
     if (!Array.isArray(incoming)) return { paragraphs: [], blanks: [] };
 
-    const paras = [];
+    const paras= [];
     const blankList = [];
     let auto = 0;
 
@@ -104,10 +114,12 @@ export default function Sprachbausteine1({
           rawOptions = [rawBlank.answer];
         else rawOptions = [];
 
+        // normalize
         const opts = rawOptions.map((ro, oi) =>
           normalizeOptionRaw(ro, storageKey, oi)
         );
 
+        // compute correct answer title
         let correctTitle = null;
         if (rawBlank && typeof rawBlank === "object" && rawBlank.answer !== undefined) {
           const foundByTitle = opts.find(
@@ -122,10 +134,13 @@ export default function Sprachbausteine1({
           }
         }
 
+        // 🔀 shuffle options once here
+        const shuffledOpts = shuffleArray(opts);
+
         blankList.push({
           id: storageKey,
           parentQid,
-          options: opts,
+          options: shuffledOpts,
           correctTitle,
           raw: rawBlank,
         });
@@ -159,9 +174,7 @@ export default function Sprachbausteine1({
           arr.forEach((it) => {
             if (it && it.id)
               start[it.id] =
-                it.value ?? it.val ?? it.answer ?? it.value === 0
-                  ? it.value
-                  : it.value;
+                it.value ?? it.val ?? it.answer ?? (it.value === 0 ? it.value : it.value);
           });
         } else if (
           parsed &&
@@ -198,6 +211,7 @@ export default function Sprachbausteine1({
               i += 1, ai += 1
             ) {
               const desiredKey = blanks[i].id;
+
               const autoKey = availableAuto[ai];
               if (
                 start[desiredKey] === undefined &&
@@ -323,10 +337,10 @@ export default function Sprachbausteine1({
     return (
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center">
         <h3 className="text-base md:text-lg font-semibold text-slate-900">
-          No content available for this level
+          Für diese Stufe sind keine Inhalte verfügbar.
         </h3>
         <p className="text-xs md:text-sm text-slate-500 mt-2">
-          This level has no paragraph or blanks configured yet.
+          Für diese Stufe sind keine Absätze oder Lücken konfiguriert.
         </p>
       </div>
     );
@@ -340,11 +354,11 @@ export default function Sprachbausteine1({
         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="max-w-2xl">
             <h2 className="text-lg font-semibold text-slate-900">
-              Level 4 – Fill in the blanks (Sprachbausteine)
+              Lesen 4 – Lückentext (Sprachbausteine)
             </h2>
             <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
-              Read the text and choose the best option for each gap. Your
-              answers are saved locally for this test.
+              Lesen Sie den Text und wählen Sie für jede Lücke die beste Option aus. Ihre
+              Antworten werden lokal für diesen Test gespeichert.
             </p>
           </div>
 
@@ -354,7 +368,7 @@ export default function Sprachbausteine1({
                 onClick={handleSaveProgress}
                 className="px-4 py-1.5 rounded-full text-xs md:text-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
               >
-                Save Progress
+                Fortschritt speichern
               </button>
             )}
             <button
@@ -366,7 +380,7 @@ export default function Sprachbausteine1({
                   : "bg-emerald-600 text-white hover:bg-emerald-700"
               }`}
             >
-              Submit Level
+              Stufe abschicken
             </button>
           </div>
         </div>
@@ -376,10 +390,10 @@ export default function Sprachbausteine1({
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 md:p-5">
             <div className="mb-3 flex items-center gap-2">
               <span className="inline-flex items-center justify-center rounded-full bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5">
-                Reading Text
+                Lesetext
               </span>
               <span className="text-[11px] text-slate-500">
-                Gaps are marked as [1], [2], [3], …
+                Lücken sind als [1], [2], [3], … markiert
               </span>
             </div>
 
@@ -408,7 +422,7 @@ export default function Sprachbausteine1({
           {/* RIGHT: options per blank */}
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 md:p-5">
             <h3 className="text-sm md:text-base font-semibold text-slate-900 mb-3">
-              Choose the correct option for each gap
+              Wählen Sie die richtige Option für jede Lücke
             </h3>
 
             <div className="space-y-4">
@@ -469,23 +483,14 @@ export default function Sprachbausteine1({
                         })
                       ) : (
                         <div className="text-xs text-slate-500">
-                          No options provided for this gap.
+                          Für diese Lücke sind keine Optionen verfügbar.
                         </div>
                       )}
-                    </div>
-
-                    <div className="mt-2 text-[10px] text-slate-400">
-                      Storage key:&nbsp;
-                      <code className="bg-slate-50 px-1 py-0.5 rounded">
-                        {b.id}
-                      </code>
                     </div>
                   </div>
                 );
               })}
             </div>
-
-            
           </div>
         </div>
       </div>

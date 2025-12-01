@@ -240,7 +240,7 @@ export default function LabelTwo({
   };
 
   const handleSaveProgress = () => {
-    if (!testId) return alert("No testId provided to save progress.");
+    if (!testId) return alert("Keine testId zum Speichern des Fortschritts angegeben.");
     try {
       const raw = localStorage.getItem(`exam_answers_${testId}`);
       const parsed = raw ? JSON.parse(raw) : {};
@@ -251,9 +251,9 @@ export default function LabelTwo({
       levels[levelKey] = { ...(levels[levelKey] || {}), ...(answers || {}) };
       const merged = { ...(parsed || {}), levels };
       localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
-      alert("Progress saved locally.");
+      alert("Fortschritt lokal gespeichert.");
     } catch {
-      alert("Failed saving progress.");
+      alert("Fehler beim Speichern des Fortschritts.");
     }
   };
 
@@ -290,11 +290,11 @@ export default function LabelTwo({
         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="max-w-2xl">
             <h2 className="text-lg font-semibold text-slate-900">
-              Level 2 – Multiple-choice questions
+              Lesen 2 – Multiple-Choice-Fragen
             </h2>
             <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
-              Read the passage carefully and select the best answer for each
-              question. Your selections are saved locally for this test.
+              Lesen Sie den Abschnitt sorgfältig durch und wählen Sie die beste Antwort für jede
+              Frage aus. Ihre Auswahlen werden lokal für diesen Test gespeichert.
             </p>
           </div>
 
@@ -304,7 +304,7 @@ export default function LabelTwo({
                 onClick={handleSaveProgress}
                 className="px-4 py-1.5 rounded-full text-xs md:text-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
               >
-                Save Progress
+                Fortschritt speichern
               </button>
             )}
             <button
@@ -316,7 +316,7 @@ export default function LabelTwo({
                   : "bg-emerald-600 text-white hover:bg-emerald-700"
               }`}
             >
-              Submit Level
+              Level abschicken
             </button>
           </div>
         </div>
@@ -326,7 +326,7 @@ export default function LabelTwo({
           <div className="mb-6 bg-white rounded-lg border border-slate-200 shadow-sm">
             <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
               <span className="inline-flex items-center justify-center rounded-full bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5">
-                Reading Passage
+                Lesepassage
               </span>
             </div>
             <div className="px-4 py-4 text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">
@@ -339,7 +339,7 @@ export default function LabelTwo({
         <div className="space-y-4">
           {normalized.length === 0 ? (
             <div className="p-6 text-slate-500 text-sm bg-white rounded-lg border border-dashed border-slate-200 text-center">
-              No questions available for this level.
+              Keine Fragen für dieses Level verfügbar.
             </div>
           ) : (
             normalized.map((q, idx) => (
@@ -392,7 +392,7 @@ export default function LabelTwo({
                     })
                   ) : (
                     <div className="text-xs text-slate-500">
-                      No options provided for this question.
+                      Keine Optionen für diese Frage verfügbar.
                     </div>
                   )}
                 </div>

@@ -5,9 +5,9 @@ import { useExamTimer } from "../components/ExamTimerContext";
 import Link from "next/link";
 
 export default function ExamHeader({
-  title = "Exam Portal",
-  subtitle = "Classroom or Practice Test",
-  logoSrc = "https://flpworldwide.com/wp-content/uploads/2024/12/FLP-Logo-e1739693871975-1024x344.png",
+  title = "testyourgerman.com",
+  subtitle = "Practice Exam Portal",
+  logoSrc = "https://upload.wikimedia.org/wikipedia/en/thumb/b/ba/Flag_of_Germany.svg/330px-Flag_of_Germany.svg.png",
   onMenuToggle,
   userName,            // <- dynamic
   userRole = "Student" // <- optional
@@ -47,7 +47,7 @@ export default function ExamHeader({
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="w-30 h-10 rounded-md overflow-hidden flex items-center justify-center">
+              <div className="w-20 h-10 rounded-md overflow-hidden flex items-center justify-center">
                 <Link href="/dashboard">
                   <img src={logoSrc} alt="Logo" className="h-full w-auto cursor-pointer" />
                 </Link>

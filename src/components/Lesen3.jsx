@@ -180,11 +180,11 @@ export default function Lesen3({
         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="max-w-2xl">
             <h2 className="text-lg font-semibold text-slate-900">
-              Level 3 – Match texts to situations
+              Lesen 3 – Texte Situationen zuordnen
             </h2>
             <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
-              Read the texts on the left (A, B, C, …) and the situations on the
-              right. For each situation, choose which text fits best.
+              Lesen Sie die Texte auf der linken Seite (A, B, C, …) und die Situationen auf der
+              rechten Seite. Wählen Sie für jede Situation den Text aus, der am besten passt.
             </p>
           </div>
 
@@ -200,7 +200,7 @@ export default function Lesen3({
                   : "bg-emerald-600 text-white hover:bg-emerald-700"
               }`}
             >
-              Submit Level
+              Level abschicken
             </button>
           </div>
         </div>
@@ -211,18 +211,18 @@ export default function Lesen3({
             <div className="bg-white rounded-lg border border-slate-200 shadow-sm mb-1">
               <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
                 <span className="inline-flex items-center justify-center rounded-full bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5">
-                  Reading Texts
+                  Lesetexte
                 </span>
               </div>
               <div className="px-4 py-3 text-xs md:text-sm text-slate-700 leading-relaxed">
-                Read each text carefully. You will later decide which text fits
-                each situation on the right.
+                Lesen Sie jeden Text sorgfältig durch. Sie werden später entscheiden, welcher Text
+                zu jeder Situation auf der rechten Seite passt.
               </div>
             </div>
 
             {leftTexts.length === 0 ? (
               <div className="p-6 text-slate-500 text-sm bg-white rounded-lg border border-dashed border-slate-200 text-center">
-                No texts available for this level.
+                Keine Texte für dieses Level verfügbar.
               </div>
             ) : (
               leftTexts.map((t) => (
@@ -250,18 +250,18 @@ export default function Lesen3({
           <div className="flex flex-col h-full">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
               <h3 className="font-semibold text-[#004080] text-sm md:text-base">
-                Situations (1–{renderedItems.length})
+                Situationen (1–{renderedItems.length})
               </h3>
               <p className="text-xs md:text-sm text-slate-600 mt-1">
-                For each situation below, select the letter of the text (A, B,
-                C, …) that matches best.
+                Wählen Sie für jede der untenstehenden Situationen den Buchstaben des Textes (A, B,
+                C, …) aus, der am besten passt.
               </p>
             </div>
 
             <div className="space-y-3 flex-1">
               {renderedItems.length === 0 ? (
                 <div className="p-6 text-slate-500 text-sm bg-white rounded-lg border border-dashed border-slate-200 text-center">
-                  No situations available for this level.
+                  Keine Situationen für dieses Level verfügbar.
                 </div>
               ) : (
                 renderedItems.map((item, idx) => {
@@ -308,7 +308,7 @@ export default function Lesen3({
 
                       {storedValue && (
                         <div className="mt-2 text-[11px] md:text-xs text-slate-600">
-                          Selected text:{" "}
+                          Ausgewählter Text:{" "}
                           <span className="font-medium">{storedValue}</span>
                         </div>
                       )}

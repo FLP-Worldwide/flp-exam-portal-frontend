@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { message } from "antd";
-import ExamHeader from "../../components/ExamHeader";
 import {
   BarChartOutlined,
   CheckCircleOutlined,
@@ -21,12 +20,11 @@ export default function StudentDashboard() {
 
   const { activeTestId, remainingSeconds, formatted } = useExamTimer();
 
-  // --- helpers ---
   const normalizeTests = (testsArray) => {
     return (testsArray || []).map((t) => ({
       ...t,
       _id: t._id || t.assignmentId || (t.test && t.test._id) || null,
-      testName: t.test?.testName || t.testName || "Unknown Test",
+      testName: t.test?.testName || t.testName || "Unbekannter Test",
       language: t.test?.language || "N/A",
       duration: t.test?.duration || t.duration || 0,
       price: t.test?.price || t.price || 0,
@@ -46,7 +44,7 @@ export default function StudentDashboard() {
       setStudent(res.data.student || null);
     } catch (error) {
       console.error(error);
-      message.error("Failed to load dashboard data!");
+      message.error("Fehler beim Laden der Dashboard-Daten!");
     } finally {
       setLoading(false);
     }
@@ -86,7 +84,7 @@ export default function StudentDashboard() {
 
   const handleActionClick = (record) => {
     const testId = record.test?._id || record._id || record.testId;
-    if (!testId) return message.error("Invalid test ID");
+    if (!testId) return message.error("Ungültige Test-ID!");
 
     if (activeTestId && String(activeTestId) === String(testId)) {
       router.push(`/dashboard/exam/${testId}/start`);
@@ -105,19 +103,16 @@ export default function StudentDashboard() {
   return (
     <div className="min-h-screen bg-slate-50 py-6 px-4 md:px-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Top running-exam banner */}
         {activeTestId && remainingSeconds > 0 && (
           <div className="flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-red-50 px-4 py-3">
             <div>
               <div className="text-sm font-semibold text-amber-800">
-                An exam is currently running — it will auto-submit when the timer
-                completes.
+                Eine Prüfung läuft derzeit — sie wird automatisch abgegeben,
+                wenn die Zeit endet.
               </div>
               <div className="mt-1 text-xs text-amber-800/90">
-                Time remaining:{" "}
-                <span className="font-mono font-semibold">
-                  {formatted}
-                </span>
+                Verbleibende Zeit:{" "}
+                <span className="font-mono font-semibold">{formatted}</span>
                 {" • "}
                 <button
                   onClick={() =>
@@ -125,7 +120,7 @@ export default function StudentDashboard() {
                   }
                   className="underline underline-offset-2 font-medium"
                 >
-                  Click to continue exam
+                  Prüfung fortsetzen
                 </button>
               </div>
             </div>
@@ -136,24 +131,24 @@ export default function StudentDashboard() {
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
             >
               <PlayCircleOutlined />
-              Continue Exam
+              Weiter
             </button>
           </div>
         )}
 
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">
-              Welcome back, {student?.name || "Student"} 👋
+              Willkommen zurück, {student?.name || "Student"} 👋
             </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Here&apos;s an overview of your exams and progress.
+              Hier sehen Sie den Überblick über Ihre Prüfungen und Ihren
+              Fortschritt.
             </p>
           </div>
         </div>
 
-        {/* Stats cards */}
+        {/* Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="rounded-2xl bg-white p-4 shadow-sm border border-slate-100 flex items-start gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -161,7 +156,7 @@ export default function StudentDashboard() {
             </div>
             <div>
               <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                Total Tests Assigned
+                Gesamtprüfungen
               </div>
               <div className="mt-1 text-2xl font-semibold text-slate-900">
                 {totalAssigned}
@@ -175,7 +170,7 @@ export default function StudentDashboard() {
             </div>
             <div>
               <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                Tests Completed
+                Abgeschlossen
               </div>
               <div className="mt-1 text-2xl font-semibold text-slate-900">
                 {totalCompleted}
@@ -189,7 +184,7 @@ export default function StudentDashboard() {
             </div>
             <div>
               <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                Passing Ratio
+                Erfolgsquote
               </div>
               <div className="mt-1 flex items-baseline gap-1">
                 <span className="text-2xl font-semibold text-slate-900">
@@ -206,7 +201,7 @@ export default function StudentDashboard() {
             </div>
             <div>
               <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                Account Created
+                Konto erstellt
               </div>
               <div className="mt-1 text-base font-semibold text-slate-900">
                 {student?.createdAt
@@ -217,11 +212,11 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Assigned tests table */}
+        {/* Table */}
         <div className="rounded-2xl bg-white shadow-sm border border-slate-200">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-900">
-              Assigned Tests
+              Zugewiesene Prüfungen
             </h2>
           </div>
 
@@ -231,7 +226,7 @@ export default function StudentDashboard() {
             </div>
           ) : tests.length === 0 ? (
             <div className="py-10 text-center text-sm text-slate-500">
-              No tests assigned yet.
+              Keine Prüfungen zugewiesen.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -239,22 +234,22 @@ export default function StudentDashboard() {
                 <thead className="bg-slate-50 border-b border-slate-100">
                   <tr>
                     <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      #
+                      Nr.
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Test
+                      Prüfung
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Status
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Assigned
+                      Zugewiesen
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Expiry
+                      Ablaufdatum
                     </th>
                     <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Action
+                      Aktion
                     </th>
                   </tr>
                 </thead>
@@ -318,24 +313,33 @@ export default function StudentDashboard() {
                             : "--"}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => handleActionClick(record)}
-                            disabled={
-                              record.status !== "active" && !isLive
-                            }
-                            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm ${
-                              isLive
-                                ? "bg-blue-600 text-white hover:bg-blue-700"
-                                : "bg-white text-slate-800 border border-slate-200 hover:bg-slate-50"
-                            } ${
-                              record.status !== "active" && !isLive
-                                ? "opacity-50 cursor-not-allowed hover:bg-white"
-                                : ""
-                            }`}
-                          >
-                            <PlayCircleOutlined />
-                            {isLive ? "Go to Submit Exam" : "Start Test"}
-                          </button>
+                          {record.status === "completed" ? (
+                            <button
+                              onClick={() =>
+                                router.push(`/dashboard/result/${testId}`)
+                              }
+                              className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm bg-green-600 text-white hover:bg-green-700"
+                            >
+                              Ergebnis ansehen
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleActionClick(record)}
+                              disabled={record.status !== "active" && !isLive}
+                              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm ${
+                                isLive
+                                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                                  : "bg-white text-slate-800 border border-slate-200 hover:bg-slate-50"
+                              } ${
+                                record.status !== "active" && !isLive
+                                  ? "opacity-50 cursor-not-allowed hover:bg-white"
+                                  : ""
+                              }`}
+                            >
+                              <PlayCircleOutlined />
+                              {isLive ? "Prüfung abgeben" : "Test starten"}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );

@@ -240,217 +240,215 @@ export default function LevelOne({
   return (
     <DndContext onDragEnd={handleDragEnd}>
       <div className="w-full">
-        {/* container card-ish */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 md:p-6">
-          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            {/* LEFT: title + description */}
-            <div className="max-w-2xl">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Level 1 – Match passages with correct answers
-              </h2>
-              <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
-                Step 1: Click a passage to select it. Step 2: Click an answer from the
-                pool to assign it. Each answer can be used only once.
-              </p>
-            </div>
+  {/* container card-ish */}
+  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 md:p-6">
+    <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 
-            {/* RIGHT: actions */}
-            <div className="flex flex-wrap gap-2 md:gap-3 md:justify-end">
-              {!disabled && (
-                <button
-                  onClick={handleSaveProgress}
-                  className="px-4 py-1.5 rounded-full text-xs md:text-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                >
-                  Save Progress
-                </button>
-              )}
-              <button
-                onClick={handleSubmitLevel}
-                disabled={disabled}
-                className={`px-5 py-1.5 rounded-full text-xs md:text-sm font-medium ${
-                  disabled
-                    ? "bg-slate-300 text-slate-600 cursor-not-allowed"
-                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+      {/* LEFT: title + description */}
+      <div className="max-w-2xl">
+        <h2 className="text-lg font-semibold text-slate-900">
+          Niveau 1 – Ordnen Sie die Texte den richtigen Antworten zu
+        </h2>
+        <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
+          Schritt 1: Klicken Sie auf einen Textabschnitt, um ihn auszuwählen.
+          Schritt 2: Wählen Sie eine Antwort aus dem Pool aus, um sie zuzuweisen.
+          Jede Antwort kann nur einmal verwendet werden.
+        </p>
+      </div>
+
+      {/* RIGHT: actions */}
+      <div className="flex flex-wrap gap-2 md:gap-3 md:justify-end">
+        {!disabled && (
+          <button
+            onClick={handleSaveProgress}
+            className="px-4 py-1.5 rounded-full text-xs md:text-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+          >
+            Fortschritt speichern
+          </button>
+        )}
+        <button
+          onClick={handleSubmitLevel}
+          disabled={disabled}
+          className={`px-5 py-1.5 rounded-full text-xs md:text-sm font-medium ${
+            disabled
+              ? "bg-slate-300 text-slate-600 cursor-not-allowed"
+              : "bg-emerald-600 text-white hover:bg-emerald-700"
+          }`}
+        >
+          Niveau abschließen
+        </button>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+
+      {/* LEFT: Questions */}
+      <div className="space-y-4">
+        {normalizedQuestions.length === 0 ? (
+          <div className="p-6 text-slate-500 text-sm bg-white rounded-lg border border-dashed border-slate-200 text-center">
+            Keine Fragen für dieses Niveau verfügbar.
+          </div>
+        ) : (
+          normalizedQuestions.map((q, idx) => {
+            const selectedTitle = answers[q._id] ?? null;
+            const isActive = activeQ === q._id;
+
+            return (
+              <div
+                key={q._id}
+                id={q._id}
+                onClick={() => handleQuestionClick(q._id)}
+                className={`rounded-lg border transition shadow-sm cursor-pointer ${
+                  isActive
+                    ? "border-blue-500 ring-2 ring-blue-200 bg-white"
+                    : "border-slate-200 bg-white hover:border-slate-300"
                 }`}
               >
-                Submit Level
-              </button>
-            </div>
-          </div>
-
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
-            {/* LEFT: Questions */}
-            <div className="space-y-4">
-              {normalizedQuestions.length === 0 ? (
-                <div className="p-6 text-slate-500 text-sm bg-white rounded-lg border border-dashed border-slate-200 text-center">
-                  No questions for this level.
-                </div>
-              ) : (
-                normalizedQuestions.map((q, idx) => {
-                  const selectedTitle = answers[q._id] ?? null;
-                  const isActive = activeQ === q._id;
-
-                  return (
-                    <div
-                      key={q._id}
-                      id={q._id}
-                      onClick={() => handleQuestionClick(q._id)}
-                      className={`rounded-lg border transition shadow-sm cursor-pointer ${
-                        isActive
-                          ? "border-blue-500 ring-2 ring-blue-200 bg-white"
-                          : "border-slate-200 bg-white hover:border-slate-300"
-                      }`}
-                    >
-                      <div className="px-4 pt-3 pb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center justify-center rounded-full bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5">
-                            Passage {idx + 1}
-                          </span>
-                          {isActive && (
-                            <span className="text-[10px] text-blue-600 font-medium uppercase tracking-wide">
-                              Selected
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="px-4 pb-3 text-sm text-slate-800 whitespace-pre-wrap leading-relaxed border-t border-slate-100">
-                        {q.text}
-                      </div>
-
-                      <div className="px-4 pb-4 border-t border-slate-100">
-                        {selectedTitle ? (
-                          <div className="mt-3 flex items-center justify-between px-3 py-2 rounded-md bg-emerald-50 border border-emerald-200">
-                            <div className="text-xs md:text-sm text-emerald-800">
-                              {selectedTitle}
-                            </div>
-                            {!disabled && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  clearAnswer(q._id);
-                                }}
-                                className="ml-3 px-2 py-1 text-xs bg-red-50 border border-red-200 text-red-700 rounded hover:bg-red-100"
-                              >
-                                Clear
-                              </button>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="mt-3 text-xs text-slate-400">
-                            {isActive
-                              ? "Now choose an answer from the pool on the right."
-                              : "Click to select this passage, then choose an answer."}
-                          </div>
-                        )}
-
-                        {Array.isArray(q.options) && q.options.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-1.5">
-                            {q.options.map((opt) => {
-                              const isSelected = answers[q._id] === opt.title;
-                              const disabledOpt =
-                                disabled ||
-                                (usedTitles.has(opt.title) && !isSelected);
-                              return (
-                                <button
-                                  key={opt.id}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (disabledOpt) return;
-                                    handleOptionClick(opt.id);
-                                  }}
-                                  className={`px-2.5 py-1 rounded-full text-xs border ${
-                                    isSelected
-                                      ? "border-blue-500 bg-blue-50 font-semibold text-blue-700"
-                                      : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50"
-                                  } ${disabledOpt ? "opacity-60" : ""}`}
-                                  disabled={disabledOpt}
-                                >
-                                  {opt.title}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* RIGHT: Options Pool */}
-            <div className="h-full flex flex-col">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="font-semibold text-slate-900 text-sm md:text-base">
-                  Answer Pool
-                </h3>
-                {masterOptions.length > 0 && (
-                  <span className="text-[11px] text-slate-500">
-                    {masterOptions.length} options
-                  </span>
-                )}
-              </div>
-
-              <p className="text-xs text-slate-500 mb-2">
-                First, click a passage on the left. Then click an answer here to
-                assign it. Each answer can only be used once.
-              </p>
-
-              {showSelectHint && !disabled && (
-                <div className="mb-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-1.5">
-                  Please <strong>select a passage</strong> on the left before
-                  choosing an answer.
-                </div>
-              )}
-
-              <div className="flex-1 space-y-2 mt-1">
-                {masterOptions.length === 0 ? (
-                  <div className="p-4 text-xs text-slate-500 bg-white rounded-lg border border-dashed border-slate-200 text-center">
-                    No option pool provided by API.
+                <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center rounded-full bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5">
+                      Textabschnitt {idx + 1}
+                    </span>
+                    {isActive && (
+                      <span className="text-[10px] text-blue-600 font-medium uppercase tracking-wide">
+                        Ausgewählt
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  masterOptions.map((opt) => {
-                    const used = usedTitles.has(opt.title);
-                    const disabledItem = disabled || used;
-                    return (
-                      <div
-                        key={opt.id}
-                        draggable={!disabledItem}
-                        onDragStart={(e) => {
-                          try {
-                            e.dataTransfer.setData(
-                              "text/plain",
-                              String(opt.id)
-                            );
-                          } catch (err) {}
-                        }}
-                        onClick={() => {
-                          if (disabledItem) return;
-                          handleOptionClick(opt.id);
-                        }}
-                        className={`p-3 rounded-md border text-sm flex justify-between items-center cursor-pointer select-none transition ${
-                          disabledItem
-                            ? "bg-slate-50 text-slate-400 border-slate-200"
-                            : "bg-white text-slate-800 border-slate-200 hover:bg-blue-50 hover:border-blue-300"
-                        }`}
-                      >
-                        <span>{opt.title}</span>
-                        {used && (
-                          <span className="text-[11px] text-emerald-700 font-medium">
-                            used
-                          </span>
-                        )}
+                </div>
+
+                <div className="px-4 pb-3 text-sm text-slate-800 whitespace-pre-wrap leading-relaxed border-t border-slate-100">
+                  {q.text}
+                </div>
+
+                <div className="px-4 pb-4 border-t border-slate-100">
+                  {selectedTitle ? (
+                    <div className="mt-3 flex items-center justify-between px-3 py-2 rounded-md bg-emerald-50 border border-emerald-200">
+                      <div className="text-xs md:text-sm text-emerald-800">
+                        {selectedTitle}
                       </div>
-                    );
-                  })
-                )}
+                      {!disabled && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            clearAnswer(q._id);
+                          }}
+                          className="ml-3 px-2 py-1 text-xs bg-red-50 border border-red-200 text-red-700 rounded hover:bg-red-100"
+                        >
+                          Entfernen
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-3 text-xs text-slate-400">
+                      {isActive
+                        ? "Wählen Sie jetzt eine Antwort aus dem rechten Pool."
+                        : "Klicken Sie hier, um den Text auszuwählen, und wählen Sie dann eine Antwort."}
+                    </div>
+                  )}
+
+                  {Array.isArray(q.options) && q.options.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {q.options.map((opt) => {
+                        const isSelected = answers[q._id] === opt.title;
+                        const disabledOpt =
+                          disabled ||
+                          (usedTitles.has(opt.title) && !isSelected);
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (disabledOpt) return;
+                              handleOptionClick(opt.id);
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-xs border ${
+                              isSelected
+                                ? "border-blue-500 bg-blue-50 font-semibold text-blue-700"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50"
+                            } ${disabledOpt ? "opacity-60" : ""}`}
+                            disabled={disabledOpt}
+                          >
+                            {opt.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* RIGHT: Options Pool */}
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="font-semibold text-slate-900 text-sm md:text-base">
+            Antwortpool
+          </h3>
+          {masterOptions.length > 0 && (
+            <span className="text-[11px] text-slate-500">
+              {masterOptions.length} Optionen
+            </span>
+          )}
+        </div>
+
+        <p className="text-xs text-slate-500 mb-2">
+          Klicken Sie zuerst einen Textabschnitt links an und wählen Sie dann eine Antwort.
+        </p>
+
+        {showSelectHint && !disabled && (
+          <div className="mb-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-1.5">
+            Bitte <strong>wählen Sie zuerst einen Textabschnitt</strong> aus.
           </div>
+        )}
+
+        <div className="flex-1 space-y-2 mt-1">
+          {masterOptions.length === 0 ? (
+            <div className="p-4 text-xs text-slate-500 bg-white rounded-lg border border-dashed border-slate-200 text-center">
+              Keine Antwortoptionen vom System bereitgestellt.
+            </div>
+          ) : (
+            masterOptions.map((opt) => {
+              const used = usedTitles.has(opt.title);
+              const disabledItem = disabled || used;
+              return (
+                <div
+                  key={opt.id}
+                  draggable={!disabledItem}
+                  onDragStart={(e) => {
+                    try {
+                      e.dataTransfer.setData("text/plain", String(opt.id));
+                    } catch (err) {}
+                  }}
+                  onClick={() => {
+                    if (disabledItem) return;
+                    handleOptionClick(opt.id);
+                  }}
+                  className={`p-3 rounded-md border text-sm flex justify-between items-center cursor-pointer select-none transition ${
+                    disabledItem
+                      ? "bg-slate-50 text-slate-400 border-slate-200"
+                      : "bg-white text-slate-800 border-slate-200 hover:bg-blue-50 hover:border-blue-300"
+                  }`}
+                >
+                  <span>{opt.title}</span>
+                  {used && (
+                    <span className="text-[11px] text-emerald-700 font-medium">
+                      verwendet
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
     </DndContext>
   );
 }
