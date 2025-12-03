@@ -350,11 +350,7 @@ export default function WritingTest() {
             <span className="font-semibold text-slate-900">{wordCount}</span>
           </div>
         </div>
-        {activeTask.instruction && (
-          <p className="text-xs sm:text-sm text-slate-500 mb-3">
-            {activeTask.instruction}
-          </p>
-        )}
+        
         <textarea
           value={texts[activeTaskId]}
           onChange={handleTextChange}
@@ -363,6 +359,13 @@ export default function WritingTest() {
           placeholder="Schreiben Sie Ihren Text hier…"
           spellCheck={true}
         />
+
+        {activeTask.instruction && (
+          <pre className="mt-1 text-xs sm:text-sm text-slate-600 whitespace-pre-wrap font-normal border-t border-slate-100 pt-1">
+          {activeTask.instruction}
+        </pre>
+        )}
+        
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-3 text-[11px] sm:text-xs text-slate-500 gap-1">
           <span>
             Gestartet:{' '}

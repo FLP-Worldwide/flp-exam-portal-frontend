@@ -165,10 +165,49 @@ export default function Sprachbausteine2({
   };
 
   const [usedWords, setUsedWords] = useState(() => loadAndMigrate());
-  const usedValues = useMemo(
-    () => new Set(Object.values(usedWords || {})),
-    [usedWords]
-  );
+// which *button index* is used for which blank
+const [usedIndices, setUsedIndices] = useState({});
+
+// quick lookup: which indices are already used
+const usedIndexSet = useMemo(
+  () => new Set(Object.values(usedIndices || {})),
+  [usedIndices]
+);
+
+
+useEffect(() => {
+  // build map from word text -> list of button indices
+  const wordToIndices = {};
+  blanksList.forEach((w, idx) => {
+    const key = String(w);
+    if (!wordToIndices[key]) wordToIndices[key] = [];
+    wordToIndices[key].push(idx);
+  });
+
+  const assigned = new Set();
+  const idxMap = {};
+
+  Object.entries(usedWords || {}).forEach(([blankKey, value]) => {
+    const key = String(value);
+    const indices = wordToIndices[key] || [];
+    let chosen = null;
+
+    for (const i of indices) {
+      if (!assigned.has(i)) {
+        chosen = i;
+        break;
+      }
+    }
+
+    if (chosen !== null) {
+      assigned.add(chosen);
+      idxMap[blankKey] = chosen;
+    }
+  });
+
+  setUsedIndices(idxMap);
+}, [blanksList, usedWords]);
+
 
   // persist grouped array
   useEffect(() => {
@@ -195,28 +234,38 @@ export default function Sprachbausteine2({
   // selection handlers
   const [selectedWord, setSelectedWord] = useState(null);
 
-  const handleWordClick = (word) => {
-    if (disabled) return;
-    if (usedValues.has(word)) return;
-    setSelectedWord((s) => (s === word ? null : word));
-  };
+ const handleWordClick = (word, idx) => {
+  if (disabled) return;
+  if (usedIndexSet.has(idx)) return; // that button already used
+  setSelectedWord((s) =>
+    s && s.idx === idx ? null : { word, idx }
+  );
+};
+const handleFill = (blankIndexOneBased) => {
+  if (disabled) return;
+  if (!selectedWord) return;
 
-  const handleFill = (blankIndexOneBased) => {
-    if (disabled) return;
-    if (!selectedWord) return;
-    const idx = blankIndexOneBased - 1;
-    const key = blankKeys[idx];
-    if (!key) return;
-    if (usedValues.has(selectedWord)) return;
+  const { word, idx: buttonIdx } = selectedWord;
+  const blankIdx = blankIndexOneBased - 1;
+  const key = blankKeys[blankIdx];
+  if (!key) return;
+  if (usedIndexSet.has(buttonIdx)) return;
 
-    setUsedWords((prev) => {
-      const next = { ...(prev || {}) };
-      next[key] = selectedWord;
-      return next;
-    });
+  setUsedWords((prev) => {
+    const next = { ...(prev || {}) };
+    next[key] = word;          // ✅ save just the value like before
+    return next;
+  });
 
-    setSelectedWord(null);
-  };
+  setUsedIndices((prev) => {
+    const next = { ...(prev || {}) };
+    next[key] = buttonIdx;     // ✅ remember which button was used
+    return next;
+  });
+
+  setSelectedWord(null);
+};
+
 
   const handleClearAll = () => {
     if (disabled) return;
@@ -225,6 +274,7 @@ export default function Sprachbausteine2({
     requestAnimationFrame(() => {
       setRemountKey((k) => k + 1);
       setUsedWords({});
+      setUsedIndices({}); 
       setSelectedWord(null);
       setTimeout(() => (clearingRef.current = false), 30);
     });
@@ -380,13 +430,14 @@ export default function Sprachbausteine2({
 
             <div className="grid grid-cols-2 gap-2 mb-4">
               {blanksList.map((word, idx) => {
-                const isUsed = usedValues.has(word);
-                const isSelected = selectedWord === word;
+                const isUsed = usedIndexSet.has(idx);
+                const isSelected = selectedWord && selectedWord.idx === idx;
+
                 return (
                   <button
                     type="button"
                     key={`word_${idx}_${String(word).slice(0, 8)}`}
-                    onClick={() => handleWordClick(word)}
+                    onClick={() => handleWordClick(word, idx)}
                     disabled={isUsed || disabled}
                     className={`text-center py-2 rounded text-xs md:text-sm font-medium border transition ${
                       isSelected
@@ -400,6 +451,7 @@ export default function Sprachbausteine2({
                   </button>
                 );
               })}
+
 
             </div>
 

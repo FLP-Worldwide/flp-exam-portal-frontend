@@ -89,6 +89,7 @@ export default function StartExamModule() {
   };
 
   const startExamAndRedirect = async () => {
+    if (starting) return;
     if (!testObj) {
       toast.error("Testdaten nicht geladen.");
       return;
@@ -113,9 +114,9 @@ export default function StartExamModule() {
       return;
     }
 
-    setStarting(true);
-
+    
     try {
+      setStarting(true);
       const payload = assignmentId ? { assignmentId } : {};
       await api.post(`/course-test/attempt/${testId}`, payload);
 
@@ -312,6 +313,7 @@ export default function StartExamModule() {
               <Button
                 type="primary"
                 icon={<PlayCircleOutlined />}
+                
                 size="large"
                 onClick={() => router.push(`/dashboard/exam/${testId}/start`)}
               >
@@ -323,7 +325,11 @@ export default function StartExamModule() {
                 icon={<PlayCircleOutlined />}
                 size="large"
                 loading={starting}
-                disabled={attemptsLeft !== null && attemptsLeft <= 0}
+                
+                disabled={
+                  starting || (attemptsLeft !== null && attemptsLeft <= 0) // 🔒 no double click
+                }
+                
                 onClick={startExamAndRedirect}
               >
                 {starting ? "Wird gestartet..." : "Prüfung starten"}

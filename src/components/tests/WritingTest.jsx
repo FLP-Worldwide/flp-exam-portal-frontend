@@ -147,11 +147,12 @@ const submitAll = async () => {
 
     const res = await api.post("/course-test/details", payload); // ✅ POST instead of PUT
 
-    if (res?.data?.success) {
-      toast.success(res.data.message || "Saved successfully");
-    } else {
-      toast.error(res?.data?.message || "Save failed");
-    }
+    toast.success(res.data.message || "Saved successfully");
+
+    // if (res?.data?.success) {
+    // } else {
+    //   toast.error(res?.data?.message || "Save failed");
+    // }
   } catch (err) {
     console.error(err);
     toast.error("Network error while saving");
@@ -264,12 +265,14 @@ function TaskEditor({ label, value, onChange }) {
         </div>
         <div>
           <label className="block text-sm mb-1">Instruction (short)</label>
-          <input
+          <textarea
+            rows={4}
             value={value.instruction}
             onChange={(e) => onChange({ ...value, instruction: e.target.value })}
             className="border p-2 rounded-md w-full"
             placeholder="e.g., Write a formal complaint…"
-          />
+          >
+          </textarea>
         </div>
       </div>
     </div>

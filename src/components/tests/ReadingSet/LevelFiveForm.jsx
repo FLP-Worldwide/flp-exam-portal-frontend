@@ -64,7 +64,7 @@ export default function LevelFiveForm({ testId, data }) {
         if (p.id !== id) return p;
 
         const blankCount = (value.match(/___/g) || []).length;
-        const minFields = Math.max(blankCount, 3); // 👈 always show at least 3
+        const minFields = Math.max(blankCount, p.blanks.length, 3);
         const updatedBlanks = Array.from({ length: minFields }, (_, i) => {
           return p.blanks[i] ?? "";
         });
@@ -87,6 +87,21 @@ export default function LevelFiveForm({ testId, data }) {
       )
     );
   };
+
+// ➕ Add more blank answer fields for a paragraph
+const addBlankField = (pId) => {
+  setParagraphs((prev) =>
+    prev.map((p) =>
+      p.id === pId
+        ? {
+            ...p,
+            blanks: [...p.blanks, ""], // add one more empty answer field
+          }
+        : p
+    )
+  );
+};
+
 
   // ➕ Add paragraph
   const addParagraph = () => {
@@ -118,19 +133,30 @@ export default function LevelFiveForm({ testId, data }) {
         .slice(0, blankCount)
         .map((ans) => ans.trim());
 
+        const allBlanks = p.blanks.map((ans) => ans.trim());
+
       return {
         paragraph: trimmedParagraph,
-        blanks: usedBlanks,
+        blanks: allBlanks,
         _blankCount: blankCount, // temp for validation only
       };
     });
 
     // Basic validation
     const hasInvalid = paragraphsPayload.some((p) => {
-      if (!p.paragraph) return true;
-      if (p._blankCount === 0) return false; // no blanks → no answers required
-      return p.blanks.length !== p._blankCount || p.blanks.some((b) => !b);
-    });
+  if (!p.paragraph) return true;
+
+  // no blanks in paragraph → no answers required
+  if (p._blankCount === 0) return false;
+
+  // ✅ Only first `_blankCount` answers are required
+  const requiredAnswers = p.blanks.slice(0, p._blankCount);
+  return (
+    requiredAnswers.length !== p._blankCount ||
+    requiredAnswers.some((b) => !b)
+  );
+});
+
 
     if (hasInvalid) {
       return toast.error("Please fill answers for all blanks in each paragraph.");
@@ -323,23 +349,34 @@ export default function LevelFiveForm({ testId, data }) {
 
                         {/* Blanks answers */}
                         {p.blanks.length > 0 && (
-                          <Space
-                            direction="vertical"
+                        <Space
+                          direction="vertical"
+                          size="small"
+                          style={{ width: "100%" }}
+                        >
+                          {p.blanks.map((b, bi) => (
+                            <Input
+                              key={bi}
+                              placeholder={`Answer for Blank ${bi + 1}`}
+                              value={b}
+                              onChange={(e) =>
+                                handleBlankChange(p.id, bi, e.target.value)
+                              }
+                            />
+                          ))}
+
+                          <Button
+                            type="dashed"
+                            icon={<PlusOutlined />}
+                            onClick={() => addBlankField(p.id)}
+                            style={{ marginTop: 8, borderRadius: 999 }}
                             size="small"
-                            style={{ width: "100%" }}
                           >
-                            {p.blanks.map((b, bi) => (
-                              <Input
-                                key={bi}
-                                placeholder={`Answer for Blank ${bi + 1}`}
-                                value={b}
-                                onChange={(e) =>
-                                  handleBlankChange(p.id, bi, e.target.value)
-                                }
-                              />
-                            ))}
-                          </Space>
-                        )}
+                            Add more answers
+                          </Button>
+                        </Space>
+                      )}
+
                       </div>
                     ))}
                   </Space>

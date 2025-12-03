@@ -30,6 +30,7 @@ const Exam = () => {
   const [selectedModule, setSelectedModule] = useState(null);
   const [form] = Form.useForm();
   const [selectedTestId, setSelectedTestId] = useState(null);
+  const [moduleLoading, setModuleLoading] = useState(false);
 
   // ✅ Fetch tests from API
   useEffect(() => {
@@ -102,7 +103,7 @@ const Exam = () => {
       render: (_, record) => (
         <Space>
           <Button type="link" onClick={() => handleAddModule(record._id)}>
-            Add Module
+            Add/ Edit
           </Button>
           {/* <Button danger type="link" onClick={() => handleDelete(record._id)}>
             Delete
@@ -155,14 +156,25 @@ const Exam = () => {
   };
 
   // ✅ Handle Next → route to /module/[moduleName]
-  const handleModuleNext = () => {
-    if (!selectedModule) {
-      toast.warning("Please select a module type!");
-      return;
-    }
+  const handleModuleNext = async () => {
+  if (!selectedModule) {
+    toast.warning("Please select a module type!");
+    return;
+  }
+
+  try {
+    setModuleLoading(true);          // 🔹 show loader on Next button
     setIsModuleModalOpen(false);
-    router.push(`/admin/create-exam-test/module/${selectedModule.toLowerCase()}?testId=${selectedTestId}`);
-  };
+    router.push(
+      `/admin/create-exam-test/module/${selectedModule.toLowerCase()}?testId=${selectedTestId}`
+    );
+  } finally {
+    // component will usually unmount after push,
+    // but this keeps things safe if it doesn't
+    setModuleLoading(false);
+  }
+};
+
 
   return (
     <>
@@ -234,6 +246,7 @@ const Exam = () => {
         onOk={handleModuleNext}
         onCancel={() => setIsModuleModalOpen(false)}
         okText="Next"
+        confirmLoading={moduleLoading}
       >
         <Radio.Group
           onChange={(e) => setSelectedModule(e.target.value)}
