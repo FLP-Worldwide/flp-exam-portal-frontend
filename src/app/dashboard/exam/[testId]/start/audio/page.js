@@ -1,18 +1,19 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import api from '../../../../../../utils/axios'
 import Player from '../../../../../../components/shared/Player'
-import TestSubmitBtn from "../../../../../../components/TestSubmitBtn";
-import { useRouter } from "next/navigation";
+import TestSubmitBtn from '../../../../../../components/TestSubmitBtn'
+
 export default function ListeningTest() {
   const { testId } = useParams()
-const router = useRouter();
+  const router = useRouter()
+
   const [loading, setLoading] = useState(true)
-  const [media, setMedia] = useState(null)
-  const [questions, setQuestions] = useState([])
-  const [answers, setAnswers] = useState({})
+  const [levels, setLevels] = useState([]) // [{ key, label, media, questions }]
+  const [activeLevelIndex, setActiveLevelIndex] = useState(0)
+  const [answers, setAnswers] = useState({}) // { questionId: "richtig" | "falsch" }
   const [testMeta, setTestMeta] = useState(null)
 
   // ---------- FETCH FROM API ----------
@@ -29,22 +30,17 @@ const router = useRouter();
         )
 
         const raw = res?.data?.data || res?.data || null
-        const payload =
-          raw && typeof raw === 'object'
-            ? raw
-            : null
+        const payload = raw && typeof raw === 'object' ? raw : null
 
         if (!payload) {
           console.warn('Audio: no payload found in server response', res)
           if (!cancelled) {
-            setMedia(null)
-            setQuestions([])
+            setLevels([])
             setTestMeta(null)
           }
           return
         }
 
-        // meta (test name, language, duration, etc.)
         if (!cancelled) {
           setTestMeta({
             testName: payload.testName || 'Hörverstehen – Prüfung',
@@ -54,54 +50,53 @@ const router = useRouter();
         }
 
         const modules = payload.modules || {}
-        let foundContent = null
+        const audioEntries = Object.entries(modules).filter(
+          ([, m]) => m && (m.module || '').toString().toLowerCase() === 'audio'
+        )
 
-        // Find the audio module (e.g. "level_level_1" with module: "audio")
-        Object.values(modules).forEach((m) => {
-          if (foundContent || !m) return
-          const modName = (m.module || '').toString().toLowerCase()
-          if (modName === 'audio') {
-            foundContent = m.content ?? m
-          }
-        })
-
-        // fallback if content might be directly on payload
-        if (!foundContent && payload.content) {
-          foundContent = payload.content
-        }
-
-        if (!foundContent) {
-          console.warn('Audio: no module content found')
+        if (!audioEntries.length) {
+          console.warn('Audio: no audio modules found')
           if (!cancelled) {
-            setMedia(null)
-            setQuestions([])
+            setLevels([])
           }
           return
         }
 
-        const content = foundContent
+        const builtLevels = audioEntries.map(([key, m], idx) => {
+          const content = m.content || {}
+          const mediaFromServer = content.media || null
+          const questionsRaw = Array.isArray(content.questions)
+            ? content.questions
+            : []
 
-        const mediaFromServer = content.media || null
+          const normalizedQuestions = questionsRaw.map((q, qIdx) => ({
+            id: q.questionId || q._id || q.id || `${key}_q${qIdx + 1}`,
+            index: qIdx + 1,
+            text: q.text || q.question || '',
+          }))
 
-        const questionsRaw = Array.isArray(content.questions)
-          ? content.questions
-          : []
+          // label like "Level 1", "Level 2" …
+          const label =
+            key && key.startsWith('level_level_')
+              ? `Level ${key.replace('level_level_', '')}`
+              : `Level ${idx + 1}`
 
-        const normalizedQuestions = questionsRaw.map((q, idx) => ({
-          id: q.questionId || q._id || q.id || idx + 1,
-          index: idx + 1,
-          text: q.text || q.question || '',
-        }))
+          return {
+            key,
+            label,
+            media: mediaFromServer,
+            questions: normalizedQuestions,
+          }
+        })
 
         if (!cancelled) {
-          setMedia(mediaFromServer)
-          setQuestions(normalizedQuestions)
+          setLevels(builtLevels)
+          setActiveLevelIndex(0)
         }
       } catch (err) {
         console.error('Failed to fetch audio module:', err)
         if (!cancelled) {
-          setMedia(null)
-          setQuestions([])
+          setLevels([])
           setTestMeta(null)
         }
       } finally {
@@ -116,43 +111,78 @@ const router = useRouter();
     }
   }, [testId])
 
+  // ---------- PREFILL ANSWERS FROM LOCALSTORAGE ----------
+  useEffect(() => {
+    if (!testId) return
+    try {
+      const raw = localStorage.getItem(`exam_answers_${testId}`)
+      const parsed = raw ? JSON.parse(raw) : {}
+      const saved =
+        parsed &&
+        parsed.levels &&
+        parsed.levels.audio &&
+        typeof parsed.levels.audio === 'object'
+          ? parsed.levels.audio
+          : {}
+      setAnswers(saved)
+    } catch (e) {
+      console.warn('Failed to load saved audio answers:', e)
+    }
+  }, [testId])
+
   // ---------- ANSWERS ----------
   const handleAnswer = (id, value) => {
     setAnswers((prev) => ({ ...prev, [id]: value }))
   }
 
-    const levelKey = "audio";
-    const handleSubmit = () => {
-      const payload = {};
+  const levelKey = 'audio'
 
-      questions.forEach((q) => {
+  const handleSubmit = () => {
+    const payload = {}
+
+    // collect answers for ALL levels/questions
+    levels.forEach((lvl) => {
+      ;(lvl.questions || []).forEach((q) => {
         if (answers[q.id] !== undefined && answers[q.id] !== null) {
-          payload[q.id] = answers[q.id];
+          payload[q.id] = answers[q.id]
         }
-      });
+      })
+    })
 
-      if (testId) {
-        try {
-          const raw = localStorage.getItem(`exam_answers_${testId}`);
-          const parsed = raw ? JSON.parse(raw) : {};
+    if (testId) {
+      try {
+        const raw = localStorage.getItem(`exam_answers_${testId}`)
+        const parsed = raw ? JSON.parse(raw) : {}
 
-          const levels =
-            parsed && parsed.levels && typeof parsed.levels === "object"
-              ? { ...parsed.levels }
-              : {};
+        const levelsObj =
+          parsed && parsed.levels && typeof parsed.levels === 'object'
+            ? { ...parsed.levels }
+            : {}
 
-          levels[levelKey] = { ...(levels[levelKey] || {}), ...payload };
-
-          const merged = { ...(parsed || {}), levels };
-
-          localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
-          alert("Antworten gespeichert!");
-        } catch (e) {
-          console.warn("Failed to persist submission:", e);
-          alert("Fehler beim Speichern!");
+        levelsObj[levelKey] = {
+          ...(levelsObj[levelKey] || {}),
+          ...payload,
         }
+
+        const merged = { ...(parsed || {}), levels: levelsObj }
+
+        localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged))
+        alert('Antworten gespeichert!')
+      } catch (e) {
+        console.warn('Failed to persist submission:', e)
+        alert('Fehler beim Speichern!')
       }
-    };
+    }
+  }
+
+  // ---------- DERIVED CURRENT LEVEL ----------
+  const activeLevel =
+    levels.length > 0 && activeLevelIndex >= 0 && activeLevelIndex < levels.length
+      ? levels[activeLevelIndex]
+      : null
+
+  const currentQuestions = activeLevel?.questions || []
+  const currentMedia = activeLevel?.media || null
 
   // ---------- UI ----------
   if (loading) {
@@ -166,7 +196,11 @@ const router = useRouter();
     )
   }
 
-  if (!questions.length) {
+  const noQuestions =
+    !levels.length ||
+    levels.every((lvl) => !lvl.questions || !lvl.questions.length)
+
+  if (noQuestions) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="bg-white rounded-2xl shadow px-6 py-5 text-center max-w-md">
@@ -188,6 +222,29 @@ const router = useRouter();
   return (
     <div className="min-h-screen bg-slate-50 px-3 sm:px-4 py-4 sm:py-6 flex flex-col items-center">
       <div className="w-full max-w-4xl space-y-5">
+        {/* LEVEL PILLS */}
+        {levels.length > 1 && (
+          <div className="flex flex-wrap gap-2 mb-1">
+            {levels.map((lvl, idx) => {
+              const isActive = idx === activeLevelIndex
+              return (
+                <button
+                  key={lvl.key || idx}
+                  type="button"
+                  onClick={() => setActiveLevelIndex(idx)}
+                  className={`px-3 py-1 rounded-full text-xs sm:text-sm border transition ${
+                    isActive
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                  }`}
+                >
+                  {lvl.label || `Level ${idx + 1}`}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
         {/* HEADER CARD */}
         <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl shadow-md border border-slate-900/40">
           <div className="px-4 sm:px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -213,12 +270,11 @@ const router = useRouter();
             </div>
 
             <div className="w-full md:w-64 lg:w-80">
-              {/* Audio Player – pass URL if your Player supports `src` */}
               <div className="bg-slate-900/60 rounded-xl px-3 py-2 shadow-inner">
-                <Player src={media?.url} />
-                {media?.filename && (
+                <Player src={currentMedia?.url} />
+                {currentMedia?.filename && (
                   <p className="mt-1 text-[11px] text-slate-300 truncate">
-                    {media.filename}
+                    {currentMedia.filename}
                   </p>
                 )}
               </div>
@@ -231,16 +287,18 @@ const router = useRouter();
           <p className="text-[11px] sm:text-sm text-amber-900">{subTitle}</p>
         </div>
 
-        {/* QUESTIONS TABLE */}
+        {/* QUESTIONS TABLE FOR ACTIVE LEVEL */}
         <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-800">
-              Aussagen zum Audio
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Wählen Sie für jede Aussage aus, ob sie <strong>richtig</strong> oder{' '}
-              <strong>falsch</strong> ist.
-            </p>
+          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-800">
+                Aussagen zum Audio – {activeLevel?.label}
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Wählen Sie für jede Aussage aus, ob sie <strong>richtig</strong> oder{' '}
+                <strong>falsch</strong> ist.
+              </p>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -254,7 +312,7 @@ const router = useRouter();
                 </tr>
               </thead>
               <tbody>
-                {questions.map((q, idx) => (
+                {currentQuestions.map((q, idx) => (
                   <tr
                     key={q.id}
                     className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
@@ -299,10 +357,10 @@ const router = useRouter();
             >
               Speichern
             </button>
-
           </div>
         </div>
-           <TestSubmitBtn />
+
+        <TestSubmitBtn />
       </div>
     </div>
   )
