@@ -1,56 +1,163 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import api from "../../utils/axios";
+
+// Optional: agar TypeScript use kar rahe ho to global type (ignore in JS)
+// declare global {
+//   interface Window {
+//     Razorpay: any;
+//   }
+// }
+
+// Helper: Razorpay script load karne ka function
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+
+    // Already loaded?
+    const existingScript = document.querySelector(
+      'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+    );
+    if (existingScript) {
+      resolve(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => {
+      resolve(true);
+    };
+    script.onerror = () => {
+      resolve(false);
+    };
+    document.body.appendChild(script);
+  });
+};
+
 
 export default function BuyPage() {
   const searchParams = useSearchParams();
-  const packId = searchParams.get("packId");  // <-- Received package ID
+  const packId = searchParams.get("packId"); // <-- Received package ID
   const router = useRouter();
+
   const [form, setForm] = useState({
     name: "",
     email: "",
     phone: "",
     city: "",
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!packId) {
+      alert("Invalid pack selected.");
+      return;
+    }
 
-        try {
-        const payload = {
-            ...form,
-            packId,
-        };
+    setLoading(true);
 
-        const response = await api.post("/shop/buy-test", payload);   // <--- POST to API
-
-        console.log("Buy Response:", response.data);
-
-        alert("Vielen Dank! Unser Team wird sich bald mit Ihnen in Verbindung setzen."); // German optional
-        setForm({ name: "", phone: "",email:"", city: "" });
-
-        router.push(`/thank-you?packId=${packId}`);
-        } catch (error) {
-        console.error("Buy API Error:", error.response?.data || error.message);
-        alert(error.response?.data?.message || "Failed to submit request");
-        } finally {
+    try {
+      // 1️⃣ Razorpay script load karo
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        alert("Razorpay SDK failed to load. Please check your internet connection.");
         setLoading(false);
-        }
-    };
+        return;
+      }
+
+      // 2️⃣ Backend se order create karo
+      const payload = {
+        ...form,
+        packId,
+      };
+
+      const orderRes = await api.post("/shop/buy-test/create-order", payload);
+
+      const { orderId, amount, currency, keyId } = orderRes.data;
+
+      // 3️⃣ Razorpay Checkout options
+      const options = {
+        key: keyId,
+        amount, // in paise
+        currency,
+        name: "FLP Worldwide - Exam Portal",
+        description: `Purchase test package ${packId}`,
+        order_id: orderId,
+        prefill: {
+          name: form.name,
+          email: form.email,
+          contact: form.phone,
+        },
+        theme: {
+          color: "#2563eb",
+        },
+        handler: async function (response) {
+          try {
+            // 4️⃣ Payment success → backend pe verify-payment call
+            const verifyRes = await api.post("/shop/buy-test/verify-payment", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              // saath me user info bhi bhej do
+              name: form.name,
+              email: form.email,
+              phone: form.phone,
+              city: form.city,
+              packId,
+            });
+
+            console.log("Verify Response:", verifyRes.data);
+
+            alert("Payment successful! Your test pack has been activated.");
+
+            // Form reset + thank-you redirect
+            setForm({ name: "", phone: "", email: "", city: "" });
+            router.push(`/thank-you?packId=${packId}`);
+          } catch (err) {
+            console.error(
+              "Verify payment error:",
+              err.response?.data || err.message
+            );
+            alert(
+              err.response?.data?.message ||
+                "Payment verified on Razorpay but failed on server. Please contact support."
+            );
+          } finally {
+            setLoading(false);
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            setLoading(false);
+          },
+        },
+      };
+
+      // 5️⃣ Checkout open karo
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      console.error("Create order error:", error.response?.data || error.message);
+      alert(error.response?.data?.message || "Failed to start payment.");
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex justify-center px-4 py-6">
       <div className="w-full max-w-md bg-white shadow-md rounded-xl p-6 border border-slate-200">
-
         <Link href="/" className="text-xs text-slate-600 hover:text-blue-600">
           ← Back to Home
         </Link>
@@ -58,13 +165,19 @@ export default function BuyPage() {
         <h1 className="text-xl font-bold text-slate-900 mt-3 mb-1">
           Purchase Test Package
         </h1>
+
         <p className="text-sm text-slate-600 mb-4">
-          Selected Package: <span className="font-semibold text-blue-600">{packId}</span>
+          Selected Package:{" "}
+          <span className="font-semibold text-blue-600">
+            {packId || "Not selected"}
+          </span>
         </p>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label className="text-sm font-medium text-slate-700">Full Name</label>
+            <label className="text-sm font-medium text-slate-700">
+              Full Name
+            </label>
             <input
               type="text"
               name="name"
@@ -77,7 +190,9 @@ export default function BuyPage() {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-slate-700">Mobile Number</label>
+            <label className="text-sm font-medium text-slate-700">
+              Mobile Number
+            </label>
             <input
               type="tel"
               name="phone"
@@ -90,7 +205,9 @@ export default function BuyPage() {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-slate-700">Email</label>
+            <label className="text-sm font-medium text-slate-700">
+              Email
+            </label>
             <input
               type="email"
               name="email"
@@ -103,7 +220,9 @@ export default function BuyPage() {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-slate-700">City</label>
+            <label className="text-sm font-medium text-slate-700">
+              City
+            </label>
             <input
               type="text"
               name="city"
@@ -117,14 +236,15 @@ export default function BuyPage() {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 text-sm font-medium"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg py-2 text-sm font-medium"
           >
-            Submit & Continue
+            {loading ? "Processing..." : "Pay & Activate"}
           </button>
         </form>
 
         <p className="text-xs text-slate-500 mt-3 text-center">
-          We will call you or send payment link within a few minutes.
+          Payment is processed securely via Razorpay.
         </p>
       </div>
     </div>
