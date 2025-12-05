@@ -12,12 +12,82 @@ import {
 import api from "../../utils/axios";
 import { useExamTimer } from "../../components/ExamTimerContext";
 
+// Razorpay script loader (plain JS)
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+
+    const existingScript = document.querySelector(
+      'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+    );
+    if (existingScript) {
+      resolve(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
+// Plans
+const plans = [
+  {
+    id: "pack-1",
+    title: "1 Model Test",
+    subtitle: "Perfect for a quick level check",
+    price: "₹500",
+    tests: "1 full-length practice test",
+    badge: "Starter",
+    highlight: false,
+  },
+  {
+    id: "pack-3",
+    title: "Pack of 3 Model Tests",
+    subtitle: "Build confidence with more practice",
+    price: "₹1200",
+    tests: "3 full-length practice tests",
+    badge: "Most Popular",
+    highlight: true,
+  },
+  {
+    id: "pack-5",
+    title: "Pack of 5 Model Tests",
+    subtitle: "For serious exam preparation",
+    price: "₹1750",
+    tests: "5 full-length practice tests",
+    badge: "Best Value",
+    highlight: false,
+  },
+  {
+    id: "pack-10",
+    title: "Pack of 10 Model Tests",
+    subtitle: "Maximum practice for top scores",
+    price: "₹3000",
+    tests: "10 full-length practice tests",
+    badge: "Intensive",
+    highlight: false,
+  },
+];
+
 export default function StudentDashboard() {
   const [tests, setTests] = useState([]);
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
+  // extra state for payment prompt
+  const [showPlans, setShowPlans] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [selectedPackId, setSelectedPackId] = useState(null);
+
+  const router = useRouter();
   const { activeTestId, remainingSeconds, formatted } = useExamTimer();
 
   const normalizeTests = (testsArray) => {
@@ -100,6 +170,109 @@ export default function StudentDashboard() {
     ? ((totalCompleted / totalAssigned) * 100).toFixed(0)
     : 0;
 
+  // Razorpay payment for selected pack + phone
+  const startPaymentForPack = async (packId, phone) => {
+    if (!student) {
+      message.error("Studentendaten nicht geladen.");
+      return;
+    }
+
+    if (!phone || phone.trim().length < 8) {
+      message.error("Bitte eine gültige Handynummer eingeben.");
+      return;
+    }
+
+    setPaymentLoading(true);
+
+    try {
+      const sdkLoaded = await loadRazorpayScript();
+      if (!sdkLoaded) {
+        message.error("Razorpay SDK konnte nicht geladen werden.");
+        setPaymentLoading(false);
+        return;
+      }
+
+      const payload = {
+        name: student.name,
+        email: student.email,
+        phone: phone.trim(),
+        city: "", // dashboard se city nahi aa rahi, isliye blank
+        packId,
+      };
+
+      // 1️⃣ Backend: create order
+      const orderRes = await api.post("/shop/buy-test/create-order", payload);
+      const { orderId, amount, currency, keyId } = orderRes.data;
+
+      // 2️⃣ Razorpay Checkout
+      const options = {
+        key: keyId,
+        amount,
+        currency,
+        name: "Model Test Package",
+        description: "Purchase " + packId,
+        order_id: orderId,
+        prefill: {
+          name: student.name,
+          email: student.email,
+          contact: phone.trim(),
+        },
+        theme: {
+          color: "#2563eb",
+        },
+        handler: async function (response) {
+          try {
+            // 3️⃣ Backend: verify payment
+            const verifyRes = await api.post("/shop/buy-test/verify-payment", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              name: student.name,
+              email: student.email,
+              phone: phone.trim(),
+              city: "",
+              packId,
+            });
+
+            console.log("Verify payment response:", verifyRes.data);
+            message.success("Zahlung erfolgreich! Neue Tests wurden hinzugefügt.");
+            setShowPlans(false);
+            setSelectedPackId(null);
+            fetchDashboardData();
+          } catch (err) {
+            console.error("Verify payment error:", err);
+            message.error(
+              (err &&
+                err.response &&
+                err.response.data &&
+                err.response.data.message) ||
+                "Zahlung wurde bei Razorpay erfasst, aber Server-Verifizierung ist fehlgeschlagen."
+            );
+          } finally {
+            setPaymentLoading(false);
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            setPaymentLoading(false);
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      console.error("Create order error:", error);
+      message.error(
+        (error &&
+          error.response &&
+          error.response.data &&
+          error.response.data.message) || "Fehler beim Starten der Zahlung."
+      );
+      setPaymentLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 py-6 px-4 md:px-6">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -136,6 +309,7 @@ export default function StudentDashboard() {
           </div>
         )}
 
+        {/* Header + Buy button */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">
@@ -146,6 +320,20 @@ export default function StudentDashboard() {
               Fortschritt.
             </p>
           </div>
+
+          {totalAssigned > 0 && (
+            <button
+              onClick={() => {
+                setShowPlans(true);
+                setPhoneInput("");
+                setSelectedPackId(null);
+              }}
+              disabled={paymentLoading}
+              className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:bg-emerald-300"
+            >
+              {paymentLoading ? "Zahlung wird vorbereitet…" : "Mehr Tests kaufen"}
+            </button>
+          )}
         </div>
 
         {/* Metrics */}
@@ -350,6 +538,104 @@ export default function StudentDashboard() {
           )}
         </div>
       </div>
+
+      {/* Payment prompt overlay */}
+      {showPlans && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl border border-slate-200 p-6 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Weitere Testpakete kaufen
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Wählen Sie ein Paket aus und geben Sie Ihre Handynummer für den Zahlungslink an.
+                </p>
+              </div>
+              <button
+                onClick={() => !paymentLoading && setShowPlans(false)}
+                className="text-xs text-slate-500 hover:text-slate-800"
+              >
+                Schließen ✕
+              </button>
+            </div>
+
+            {/* Phone input */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-700">
+                Handynummer
+              </label>
+              <input
+                type="tel"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                placeholder="z.B. 017612345678"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <p className="text-[11px] text-slate-400">
+                Wir verwenden Ihre Nummer für Zahlungsbestätigung oder Rückfragen.
+              </p>
+            </div>
+
+            {/* Plans grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {plans.map((plan) => {
+                const isSelected = selectedPackId === plan.id;
+                return (
+                  <button
+                    key={plan.id}
+                    disabled={paymentLoading}
+                    onClick={() => {
+                      if (!phoneInput || phoneInput.trim().length < 8) {
+                        message.error("Bitte zuerst eine gültige Handynummer eingeben.");
+                        return;
+                      }
+                      setSelectedPackId(plan.id);
+                      startPaymentForPack(plan.id, phoneInput);
+                    }}
+                    className={`text-left rounded-2xl border p-4 shadow-sm transition hover:shadow-md ${
+                      plan.highlight
+                        ? "border-emerald-500 bg-emerald-50/40"
+                        : "border-slate-200 bg-slate-50/40"
+                    } ${
+                      isSelected ? "ring-2 ring-emerald-400" : ""
+                    } disabled:opacity-60 disabled:cursor-not-allowed`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">
+                          {plan.title}
+                        </div>
+                        <div className="text-xs text-slate-600 mt-0.5">
+                          {plan.subtitle}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-base font-bold text-slate-900">
+                          {plan.price}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          {plan.tests}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 text-[11px] inline-flex rounded-full px-2 py-0.5 font-medium bg-white text-slate-700 border border-slate-200">
+                      {plan.badge}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {paymentLoading && (
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <div className="h-4 w-4 animate-spin rounded-full border border-slate-300 border-t-blue-500" />
+                Zahlung wird vorbereitet…
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
