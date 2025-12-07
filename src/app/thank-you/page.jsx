@@ -1,16 +1,11 @@
-"use client";
-
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 
-export default function ThankYouPage() {
-  const searchParams = useSearchParams();
-  const packId = searchParams.get("packId");
+export default function ThankYouPage({ searchParams }) {
+  const packId = searchParams?.packId ?? null;
 
   return (
     <div className="min-h-screen bg-slate-50 flex justify-center items-center px-4">
       <div className="max-w-md w-full bg-white shadow-md rounded-2xl p-6 text-center border border-slate-200">
-
         <h1 className="text-2xl font-bold text-slate-900">
           🎉 Thank You for Your Request!
         </h1>
@@ -18,7 +13,8 @@ export default function ThankYouPage() {
         <p className="mt-3 text-sm text-slate-600 leading-relaxed">
           Your details have been submitted successfully.  
           Our support team will contact you shortly to complete the purchase.
-          You can login your portal with your registered email and password <b>student123</b> to start your test.
+          You can login your portal with your registered email and password{" "}
+          <b>student123</b> to start your test.
         </p>
 
         {packId && (
