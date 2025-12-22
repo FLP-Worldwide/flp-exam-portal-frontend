@@ -5,7 +5,7 @@ import { useExamTimer } from "../components/ExamTimerContext";
 import Link from "next/link";
 
 export default function ExamHeader({
-  title = "testyourgerman.com",
+  title = "Testyourgerman.com",
   subtitle = "Practice Exam Portal",
   logoSrc = "https://upload.wikimedia.org/wikipedia/en/thumb/b/ba/Flag_of_Germany.svg/330px-Flag_of_Germany.svg.png",
   onMenuToggle,

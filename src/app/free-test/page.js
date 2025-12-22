@@ -112,7 +112,7 @@ export default function FreeTestPage() {
             <p className="mt-1 text-xs sm:text-sm text-slate-600 max-w-2xl">
               Beantworte die fünf Fragen und sieh direkt, wie viele du richtig
               hast. Das ist nur ein kleiner Vorgeschmack auf unsere vollständigen
-              FLP-Modeltests.
+              Testyourgerman.com-Modeltests.
             </p>
           </div>
 
@@ -292,7 +292,7 @@ export default function FreeTestPage() {
         {/* Motivational line */}
         {showResults && (
           <div className="mt-4 text-center text-xs sm:text-sm text-slate-700">
-            „Wie viele konntest du lösen? Mit unseren FLP telc-Übungspaketen
+            „Wie viele konntest du lösen? Mit unseren Testyourgerman.com telc-Übungspaketen
             wirst du sicherer, schneller und bereit für deine echte Prüfung.“
           </div>
         )}

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "FLP Exam Portal | testyourgerman.com",
-  description: "Test your german APP by FLP Exam Portal",
+  title: "Testyourgerman.com Exam Portal | testyourgerman.com",
+  description: "Test your german APP by Testyourgerman.com Exam Portal",
 };
 
 export default function RootLayout({ children }) {

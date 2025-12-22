@@ -33,7 +33,7 @@ export default function ThankYouPage({ searchParams }) {
         </div>
 
         <p className="mt-4 text-xs text-slate-500">
-          Need help? Email us at support@flpworldwide.com
+          Need help? Email us at testyourgermanskill@gmail.com
         </p>
       </div>
     </div>

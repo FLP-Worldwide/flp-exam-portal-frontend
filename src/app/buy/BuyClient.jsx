@@ -79,7 +79,7 @@ export default function BuyClient({ packId }) {
         key: keyId,
         amount,
         currency,
-        name: "FLP Worldwide - Exam Portal",
+        name: "Testyourgerman.com - Exam Portal",
         description: `Purchase test package ${packId}`,
         order_id: orderId,
         prefill: {

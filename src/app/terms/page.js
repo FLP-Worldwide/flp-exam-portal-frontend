@@ -11,7 +11,7 @@ export default function TermsPage() {
         <div className="max-w-5xl mx-auto px-6">
           <h1 className="text-4xl font-bold text-white">Terms & Conditions</h1>
           <p className="text-blue-100 mt-2">
-            FLP Online telc® Preparation Portal – User Agreement
+            Testyourgerman.com Online telc® Preparation Portal – User Agreement
           </p>
         </div>
       </header>
@@ -21,9 +21,8 @@ export default function TermsPage() {
         <section>
           <h2 className="text-2xl font-semibold text-gray-900">1. Introduction</h2>
           <p className="mt-2 text-gray-700">
-            By accessing and using the FLP telc® Exam Preparation Portal (“the Portal”),
-            users agree to the following Terms & Conditions. The Portal is owned and operated
-            by <strong>FLP Global Service Private Limited</strong>.
+            By accessing and using the Testyourgerman.com telc® Exam Preparation Portal (“the Portal”),
+            users agree to the following Terms & Conditions.
           </p>
         </section>
 
@@ -32,8 +31,8 @@ export default function TermsPage() {
           <p className="mt-2 text-gray-700">
             The Portal provides digital practice materials—<strong>lesen, hören, schreiben,
             sprachbausteine</strong>—designed to help learners prepare for telc®-style exams.
-            FLP is not affiliated with telc GmbH, and the modules contain original,
-            FLP-created content inspired by telc exam format but not taken from copyrighted sources.
+            Testyourgerman.com is not affiliated with telc GmbH, and the modules contain original,
+            Testyourgerman.com-created content inspired by telc exam format but not taken from copyrighted sources.
           </p>
         </section>
 
@@ -51,7 +50,7 @@ export default function TermsPage() {
           <ul className="list-disc ml-6 mt-2 text-gray-700 space-y-1">
             <li>Payments are non-refundable once access is granted.</li>
             <li>
-              Refunds are only possible in case of technical failure that FLP cannot resolve
+              Refunds are only possible in case of technical failure that Testyourgerman.com cannot resolve
               within <strong>48 hours</strong>.
             </li>
           </ul>
@@ -63,7 +62,7 @@ export default function TermsPage() {
           <ul className="list-disc ml-6 mt-2 text-gray-700 space-y-1">
             <li>Use the Portal for personal exam preparation only.</li>
             <li>Keep their login credentials confidential.</li>
-            <li>Respect FLP’s intellectual property and refrain from unauthorized distribution.</li>
+            <li>Respect Testyourgerman.com’s intellectual property and refrain from unauthorized distribution.</li>
           </ul>
         </section>
 
@@ -78,7 +77,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-2xl font-semibold text-gray-900">7. Limitation of Liability</h2>
           <p className="mt-2 text-gray-700">
-            FLP does not guarantee exam results. The modules are practice tools, and actual
+            Testyourgerman.com does not guarantee exam results. The modules are practice tools, and actual
             exam success depends on learners’ effort and ability.
           </p>
         </section>
@@ -86,7 +85,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-2xl font-semibold text-gray-900">8. Updates & Modifications</h2>
           <p className="mt-2 text-gray-700">
-            FLP may update content, features, or access policies anytime to improve user
+            Testyourgerman.com may update content, features, or access policies anytime to improve user
             experience without prior notice.
           </p>
         </section>
@@ -96,7 +95,7 @@ export default function TermsPage() {
           <p className="mt-2 text-gray-700">
             For queries or issues, contact:
             <br />
-            <strong>Email:</strong> info@flpworldwide.com
+            <strong>Email:</strong> testyourgermanskill@gmail.com
           </p>
         </section>
 

@@ -56,18 +56,21 @@ export default function Login() {
         <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 sm:p-8">
           {/* Logo + title */}
           <div className="flex flex-col items-center mb-6">
-            <div className="w-auto h-12 mb-3">
-              <img
-                src="https://flpworldwide.com/wp-content/uploads/2024/12/FLP-Logo-e1739693871975-1024x344.png"
-                alt="FLP Worldwide"
-                className="h-full w-auto object-contain"
-              />
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 text-center">
+            <div className="flex items-center gap-2">
+            <img
+              src="https://www.rjtravelagency.com/wp-content/uploads/2024/06/Germany-Flag.jpg"
+              alt="Germany Flag"
+              className="h-5 w-auto"
+            />
+            <span className="text-2xl font-bold text-black">
+              Testyourgerman.com
+            </span>
+          </div>
+            <h3 className="mt-4 text-md sm:text-md font-bold text-slate-900 text-center">
               Login to your exam portal
-            </h1>
+            </h3>
             <p className="mt-1 text-xs sm:text-sm text-slate-500 text-center max-w-md">
-              Use the login credentials shared with you by FLP Worldwide to start
+              Use the login credentials shared with you by Testyourgerman.com to start
               your German practice tests.
             </p>
           </div>
@@ -132,10 +135,10 @@ export default function Login() {
             <p className="text-[11px] sm:text-xs text-slate-500 text-right">
               Need help? Contact{" "}
               <a
-                href="mailto:info@flpworldwide.com"
+                href="mailto:testyourgermanskill@gmail.com"
                 className="text-blue-600 hover:underline"
               >
-                info@flpworldwide.com
+                testyourgermanskill@gmail.com
               </a>
             </p>
           </div>
@@ -143,8 +146,8 @@ export default function Login() {
 
         {/* Small bottom note (optional) */}
         <p className="mt-4 text-center text-[11px] text-slate-500">
-          This portal is for registered FLP German learners. For new access,
-          please contact the FLP team.
+          This portal is for registered Testyourgerman.com German learners. For new access,
+          please contact the Testyourgerman.com team.
         </p>
       </div>
     </div>

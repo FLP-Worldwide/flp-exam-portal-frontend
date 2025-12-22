@@ -129,7 +129,7 @@ export default function HomePage() {
                     </div>
 
                     <div className="text-[11px] text-blue-100">
-                      Powered by FLP Worldwide – practice from anywhere, any
+                      Powered by Testyourgerman.com – practice from anywhere, any
                       time.
                     </div>
                   </div>
@@ -144,7 +144,7 @@ export default function HomePage() {
           <div className="max-w-6xl mx-auto">
             <div className="mb-8 text-center">
               <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                Why Practice with FLP German Tests?
+                Why Practice with Testyourgerman.com German Tests?
               </h2>
               <p className="mt-3 text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
                 Our portal is designed to give you the same feeling as a real
@@ -191,10 +191,10 @@ export default function HomePage() {
           <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 items-stretch">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8 flex flex-col justify-center">
               <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
-                FLP Worldwide – Your German Exam & Learning Partner
+                Testyourgerman.com – Your German Exam & Learning Partner
               </h2>
               <p className="text-gray-600 leading-relaxed text-sm sm:text-base">
-                FLP Worldwide Global Service Pvt. Ltd. supports learners who aim
+                Testyourgerman.com Global Service Pvt. Ltd. supports learners who aim
                 for German language certification and smoother life in Germany.
                 Our online portal helps you practice{" "}
                 <span className="font-medium">
@@ -212,7 +212,7 @@ export default function HomePage() {
             <div className="flex items-center">
               <div className="w-full rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-100 via-white to-blue-50 p-6 sm:p-8 shadow-sm">
                 <div className="text-xs uppercase tracking-wide text-blue-700 font-semibold">
-                  Learning with FLP
+                  Learning with Testyourgerman.com
                 </div>
                 <div className="mt-3 text-lg font-bold text-gray-900">
                   Structured online tests with instant feedback
@@ -343,7 +343,7 @@ export default function HomePage() {
           </div>
 
           <p className="mt-8 text-center text-xs text-gray-500 max-w-xl mx-auto">
-            All prices are in INR and include online access to the FLP German
+            All prices are in INR and include online access to the Testyourgerman.com German
             test portal. Speaking (Sprechen) sessions can be added separately in
             future.
           </p>

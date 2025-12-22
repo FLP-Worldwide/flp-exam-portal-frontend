@@ -105,7 +105,7 @@ export default function AdminLayout({ children }) {
         >
           <div className="h-16 flex items-center justify-center border-b border-slate-800/40 bg-slate-950/70">
             <span className="text-white font-semibold tracking-wide text-xs">
-              {collapsed ? "FLP" : "FLP EXAM PORTAL"}
+              {collapsed ? "TYG" : "Testyourgerman EXAM PORTAL"}
             </span>
           </div>
 
