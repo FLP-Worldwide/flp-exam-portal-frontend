@@ -289,7 +289,7 @@ export default function Sprachbausteine1({
   };
 
   const handleSaveProgress = () => {
-    if (!testId) return alert("No testId provided to save progress.");
+    if (!testId) return alert("Es wurde keine „testId“ angegeben, um den Fortschritt zu speichern.");
     try {
       const raw = localStorage.getItem(`exam_answers_${testId}`);
       const parsed = raw ? JSON.parse(raw) : {};
@@ -304,9 +304,9 @@ export default function Sprachbausteine1({
       existingLevels[levelKey] = arr;
       const merged = { ...(parsed || {}), levels: existingLevels };
       localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
-      alert("Progress saved.");
+      alert("Fortschritt gespeichert.");
     } catch {
-      alert("Failed to save progress.");
+      alert("Speichern des Spielstands fehlgeschlagen.");
     }
   };
 

@@ -203,10 +203,10 @@ export default function LevelOne({
       levels[levelKey] = { ...(levels[levelKey] || {}), ...(answers || {}) };
       const merged = { ...(parsed || {}), levels };
       localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
-      alert("Progress saved locally.");
+      alert("Fortschritt lokal gespeichert.");
     } catch (e) {
       console.warn(e);
-      alert("Failed to save progress.");
+      alert("Speichern des Spielstands fehlgeschlagen.");
     }
   };
 

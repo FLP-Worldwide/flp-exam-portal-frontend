@@ -38,18 +38,18 @@ export default function TestSubmitBtn() {
 
   const handleSubmit = async () => {
     if (!testId) {
-      alert('Missing test id.');
+      alert('Test-ID fehlt.');
       return;
     }
 
     // block if timer over or wrong test
     if (!activeTestId || activeTestId !== testId || remainingSeconds <= 0) {
-      setError('Exam time has ended. You can no longer submit this test.');
-      alert('Exam time has ended. You can no longer submit this test.');
+      setError('Die Prüfungszeit ist abgelaufen. Sie können diesen Test nicht mehr einreichen.');
+      alert('Die Prüfungszeit ist abgelaufen. Sie können diesen Test nicht mehr einreichen.');
       return;
     }
 
-    if (!confirm('Are you sure you want to submit your final answers?')) return;
+    if (!confirm('Möchten Sie Ihre endgültigen Antworten wirklich absenden?')) return;
 
     setSubmitting(true);
     setError(null);

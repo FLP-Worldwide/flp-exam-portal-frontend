@@ -296,9 +296,9 @@ const handleFill = (blankIndexOneBased) => {
       existingLevels[levelKey] = arr;
       const merged = { ...(parsed || {}), levels: existingLevels };
       localStorage.setItem(`exam_answers_${testId}`, JSON.stringify(merged));
-      alert("Progress saved.");
+      alert("Fortschritt gespeichert.");
     } catch {
-      alert("Failed to save progress.");
+      alert("Der Fortschritt konnte nicht gespeichert werden.");
     }
   };
 
@@ -330,7 +330,7 @@ const handleFill = (blankIndexOneBased) => {
     } catch (e) {}
 
     onSubmitLevel({ [levelKey]: outArray });
-    alert("Level submitted.");
+    alert("Level eingereicht.");
   };
 
   // split paragraph by blanks

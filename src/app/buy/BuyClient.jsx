@@ -47,7 +47,7 @@ export default function BuyClient({ packId }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!packId) {
-      alert("Invalid pack selected.");
+      alert("Ungültiges Paket ausgewählt.");
       return;
     }
 
@@ -108,7 +108,7 @@ export default function BuyClient({ packId }) {
 
             console.log("Verify Response:", verifyRes.data);
 
-            alert("Payment successful! Your test pack has been activated.");
+            alert("Die Zahlung war erfolgreich! Ihr Testpaket wurde aktiviert.");
 
             setForm({ name: "", phone: "", email: "", city: "" });
             router.push(`/thank-you?packId=${packId}`);
