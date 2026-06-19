@@ -271,7 +271,7 @@ export default function ListeningTest() {
 
             <div className="w-full md:w-64 lg:w-80">
               <div className="bg-slate-900/60 rounded-xl px-3 py-2 shadow-inner">
-                <Player src={currentMedia?.url} />
+                <Player src={currentMedia?.path} />
                 {currentMedia?.filename && (
                   <p className="mt-1 text-[11px] text-slate-300 truncate">
                     {currentMedia.filename}
