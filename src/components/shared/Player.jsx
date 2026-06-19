@@ -36,7 +36,7 @@ const Player = ({ src }) => {
   return (
     <div className="inline-flex items-center gap-3">
       {/* Hidden native player: no controls, only programmatic control */}
-      <audio ref={audioRef} src={src} preload="auto" />
+      <audio ref={audioRef}  src={`https://flp-exam-portal.up.railway.app${src}`} preload="auto" />
 
       <button
         type="button"
