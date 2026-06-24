@@ -407,7 +407,8 @@ export default function ListeningAdmin({ testId }) {
                             )}
                             <audio
                               controls
-                              src={lvl.media.url}
+                              // src={lvl.media.path}
+                              src={`https://flp-exam-portal.up.railway.app${lvl.media.path}`}
                               style={{ width: "100%", marginTop: 8 }}
                             />
 
